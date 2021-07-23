@@ -5,8 +5,9 @@ import sys
 import re
 import pprint
 import json
-import click
 import ipaddress
+import click
+
 
 from napalm import get_network_driver
 
@@ -113,7 +114,6 @@ def get_neighbours(host, device_os, transport="ssh"):
     Returns:
         dict: BGP Neighbours from device.
     """
-
     optional_args = {"transport": transport.lower()}
 
     driver = get_network_driver(device_os)
@@ -122,13 +122,13 @@ def get_neighbours(host, device_os, transport="ssh"):
     try:
         with driver(host, cfg["username"], cfg["password"], optional_args=optional_args) as device:
             return device.get_bgp_neighbors()
-    except Exception as e:
-        print("ERROR: Connecting to {} failed: {}".format(host, e), file=sys.stderr)
+    except Exception as error_msg:
+        print("ERROR: Connecting to {} failed: {}".format(host, error_msg), file=sys.stderr)
         return None
 
 
 def filter_ri(neighbours, filter_re):
-    """Filter neighbours based on routing instance match
+    """Filter neighbours based on routing instance match.
 
     Args:
         neighbours (dict): Neighbours to filter.
@@ -141,20 +141,20 @@ def filter_ri(neighbours, filter_re):
 
     results = {}
 
-    for ri in neighbours:
-        if ri_re.match(ri):
-            results[ri] = neighbours[ri]["peers"]
+    for routing_instance in neighbours:
+        if ri_re.match(routing_instance):
+            results[routing_instance] = neighbours[routing_instance]["peers"]
             if prog_args["verbose"] >= 1:
-                print("DEBUG: Found matching routing instance {}".format(ri), file=sys.stderr)
+                print("DEBUG: Found matching routing instance {}".format(routing_instance), file=sys.stderr)
         else:
             if prog_args["verbose"] >= 2:
-                print("DEBUG: Found non matching routing instance {}".format(ri), file=sys.stderr)
+                print("DEBUG: Found non matching routing instance {}".format(routing_instance), file=sys.stderr)
 
     return results
 
 
 def do_device(hostname, device_os, transport="ssh"):
-    """Connect to device and get the neighbours
+    """Connect to device and get the neighbours.
 
     Args:
         hostname (str): Hostname of network device
@@ -164,16 +164,14 @@ def do_device(hostname, device_os, transport="ssh"):
     Returns:
         dict: BGP neighbours on device.
     """
-
     results = {}
 
     neighbours = get_neighbours(hostname, device_os, transport)
 
-
     if neighbours:
         neighbours = filter_ri(neighbours, prog_args["ri"])
-        for ri in neighbours:
-            results[ri] = parse_neighbours(neighbours[ri])
+        for routing_instance in neighbours:
+            results[routing_instance] = parse_neighbours(neighbours[routing_instance])
     elif prog_args["verbose"] >= 1:
         print("DEBUG: No BGP neighbours found on {}".format(hostname), file=sys.stderr)
 
@@ -238,8 +236,7 @@ def cli(**cli_args):
     prog_args = cli_args
     pp.pprint(prog_args)
 
-    cfg = json.load(prog_args['config'])
-
+    cfg = json.load(prog_args["config"])
 
     if prog_args["asignore"] is not None and prog_args["asexcept"] is not None:
 
@@ -276,13 +273,13 @@ def cli(**cli_args):
     elif prog_args["seed"]:
         seedline_re = re.compile("^(.+);(.+);(.+)$")
 
-        for sl in prog_args["seed"]:
-            seedline = str(sl).strip()
-            m = seedline_re.match(seedline)
-            if m:
-                hostname = m.group(1)
-                host_os = m.group(2)
-                host_transport = m.group(3)
+        for seed_line in prog_args["seed"]:
+            seedline = str(seed_line).strip()
+            seed_matches = seedline_re.match(seedline)
+            if seed_matches:
+                hostname = seed_matches.group(1)
+                host_os = seed_matches.group(2)
+                host_transport = seed_matches.group(3)
 
                 if prog_args["verbose"] >= 2:
                     print(
