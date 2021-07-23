@@ -143,12 +143,12 @@ def filter_ri(neighbours, filter_re):
 
     for ri in neighbours:
         if ri_re.match(ri):
+            results[ri] = neighbours[ri]["peers"]
             if prog_args["verbose"] >= 1:
                 print("DEBUG: Found matching routing instance {}".format(ri), file=sys.stderr)
-                results[ri] = neighbours[ri]["peers"]
-            else:
-                if prog_args["verbose"] >= 2:
-                    print("DEBUG: Found non matching routing instance {}".format(ri), file=sys.stderr)
+        else:
+            if prog_args["verbose"] >= 2:
+                print("DEBUG: Found non matching routing instance {}".format(ri), file=sys.stderr)
 
     return results
 
@@ -168,6 +168,7 @@ def do_device(hostname, device_os, transport="ssh"):
     results = {}
 
     neighbours = get_neighbours(hostname, device_os, transport)
+
 
     if neighbours:
         neighbours = filter_ri(neighbours, prog_args["ri"])
@@ -232,10 +233,13 @@ def cli(**cli_args):
         SystemExit: Error in command line options
     """
     global prog_args
+    global cfg
 
     prog_args = cli_args
     pp.pprint(prog_args)
-    pp.pprint(prog_args["asignore"])
+
+    cfg = json.load(prog_args['config'])
+
 
     if prog_args["asignore"] is not None and prog_args["asexcept"] is not None:
 
