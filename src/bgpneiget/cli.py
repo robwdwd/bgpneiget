@@ -209,18 +209,19 @@ def do_device(hostname, device_os, transport="ssh"):
     is_flag=True,
     help="Lists all routing instances / vrf found on the device. Will not process the bgp neighbours.",
 )
-@click.option("--json", is_flag=True, help="Output in json format.")
-@click.option("--delimited", is_flag=True, help="Output in delimited format.")
-@click.option("--delimiter", type=str, default=",", help="Delimiter character to use in delimited output.")
 @click.option("--privateas", is_flag=True, help="Include private AS numbers.")
 @click.option("--rfc1918", is_flag=True, help="Include neighbours with RFC1918 addresses.")
 @click.option(
     "--asexcept",
-    type=str,
-    metavar="ASNUM,[ASNUM, ...]",
-    help="Filter out all AS number except those listed here (Seperated by commas.)",
+    type=int,
+    metavar="ASNUM",
+    multiple=True,
+    help="Filter out all AS number except this one. Can be used multiple times.",
 )
-@click.option("--asignore", type=str, metavar="ASNUM", help="AS numbers to filter out (Seperated by commas.)")
+@click.option("--asignore", 
+    type=int, metavar="ASNUM", 
+    multiple=True,
+    help="AS number to filter out. Can be used multiple times.")
 @click.option(
     "--ri", default="global", help="Regular expressions of routing instances / vrfs to match. Default 'global'"
 )
@@ -234,11 +235,12 @@ def cli(**cli_args):
     global cfg
 
     prog_args = cli_args
+
     pp.pprint(prog_args)
 
     cfg = json.load(prog_args["config"])
 
-    if prog_args["asignore"] is not None and prog_args["asexcept"] is not None:
+    if prog_args["asignore"] and prog_args["asexcept"]:
 
         raise SystemExit(
             "{} error: argument --asignore: not allowed" " with argument --asexcept".format(os.path.basename(__file__))
@@ -250,12 +252,12 @@ def cli(**cli_args):
             "{} error: argument --seed: not allowed" " with argument --device".format(os.path.basename(__file__))
         )
 
-    supported_os = ["IOS", "IOS-XR", "JunOS", "EOS"]
+    supported_os = ["ios", "ios-xr", "junos", "eos"]
 
     devices_results = {}
 
     if prog_args["device"]:
-        if prog_args["device"][1] not in supported_os:
+        if prog_args["device"][1].lower() not in supported_os:
             raise SystemExit("ERROR: OS ({})is not supported.".format(prog_args["device"][1]))
 
         if prog_args["listri"]:
@@ -310,6 +312,7 @@ def cli(**cli_args):
         raise SystemExit("Required --seed or --device options are missing.")
 
     if not prog_args["listri"]:
-        pp.pprint(devices_results)
+        print(json.dumps(devices_results, indent=2))
+
         if prog_args["verbose"] >= 2:
             print("Current memory usage of results dictionary: {}".format(sys.getsizeof(devices_results)))
