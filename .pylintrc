@@ -1,5 +1,5 @@
 [MESSAGES CONTROL]
-disable=C0111,E0211,I0011,I0012,R0914,R0912,R0915,R0913,R0904,R0201,W0142
+disable=C0111,E0211,I0011,R0914,R0912,R0915,R0913,R0904
 
 [TYPECHECK]
 # Note: This modules are manipulated during the runtime so we can't detect all the properties during

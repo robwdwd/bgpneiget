@@ -1,23 +1,23 @@
 # Copyright (c) 2023, Rob Woodward. All rights reserved.
 #
-# This file is part of Looking Glass Tool and is released under the
+# This file is part of BGP Neighbour Get Tool and is released under the
 # "BSD 2-Clause License". Please see the LICENSE file that should
 # have been included as part of this distribution.
 #
 """Device command runner."""
 import pprint
-from typing import Union
+from typing import List, Union
 
-from scrapli import AsyncScrapli
 from scrapli.response import MultiResponse, Response
 
 from bgpneiget.device.base import BaseDevice
 
 pp = pprint.PrettyPrinter(indent=2, width=120)
 
+
 async def get_output(
     device: BaseDevice,
-    cli_cmds: Union[str, list],
+    cli_cmds: Union[str, List[str]],
     username: str,
     password: str,
     timeout: int = 60,
@@ -25,9 +25,10 @@ async def get_output(
     """Get existing configuration from router.
 
     Args:
-        hostname (str): Device hostname
-        device_type (str): Type of device
+        device (BaseDevice): Device object
         cli_cmds (list | str): CLI commands to run
+        username (str): Username to log into device
+        password (str): Password to log into device
         timeout (int): Timeout
 
     Returns:
@@ -46,5 +47,3 @@ async def get_output(
         raise err
 
     return response
-
-

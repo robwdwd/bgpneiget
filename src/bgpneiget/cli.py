@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+
+# Copyright (c) 2023, Rob Woodward. All rights reserved.
+#
+# This file is part of BGP Neighbour Get Tool and is released under the
+# "BSD 2-Clause License". Please see the LICENSE file that should
+# have been included as part of this distribution.
+#
+
 """Get BGP neighbours from network devices."""
 import asyncio
 import ipaddress
@@ -7,11 +15,8 @@ import os
 import pprint
 import re
 import sys
-from typing import Union
 
 import click
-from scrapli import AsyncScrapli
-from scrapli.response import MultiResponse, Response
 
 from bgpneiget.devices import init_device
 from bgpneiget.runcmds import get_output
@@ -134,48 +139,33 @@ def filter_ri(neighbours, filter_re):
     return results
 
 
-def do_device(hostname, device_os, transport="ssh"):
-    """Connect to device and get the neighbours.
+async def device_worker(name: str, queue: asyncio.Queue):
+    """Device worker coroutine, reads from the queue until empty.
 
     Args:
-        hostname (str): Hostname of network device
-        device_os (str): OS of the network device
-        transport (str, optional): Network device transport either ssh or telnet. Defaults to "ssh".
-
-    Returns:
-        dict: BGP neighbours on device.
+        name (str): Name for the worker.
+        queue (asyncio.Queue): AsyncIO queue
     """
-    results = {}
-
-    neighbours = get_neighbours(hostname, device_os, transport)
-
-    if neighbours:
-        neighbours = filter_ri(neighbours, prog_args["ri"])
-        for routing_instance in neighbours:
-            results[routing_instance] = parse_neighbours(neighbours[routing_instance])
-    elif prog_args["verbose"] >= 1:
-        print("DEBUG: No BGP neighbours found on {}".format(hostname), file=sys.stderr)
-
-    return results
-
-
-async def device_worker(name: str, queue: asyncio.Queue):
     while True:
         device = await queue.get()
-        pp.pprint(device)
         pp.pprint(device.hostname)
         pp.pprint(device.bgp_sum_cmd())
         try:
-          response = await get_output(device, device.bgp_sum_cmd(), cfg["username"], cfg["password"])
-          pp.pprint(response.result)
+            response = await get_output(device, device.bgp_sum_cmd(), cfg["username"], cfg["password"])
+            pp.pprint(response.result)
         except Exception as err:
-          print (f"ERROR: Device failed: {err}", file=sys.stderr)
-          
-        #await asyncio.sleep(2)
+            print(f"ERROR: Worker {name}, Device failed: {err}", file=sys.stderr)
+
+        # await asyncio.sleep(2)
         queue.task_done()
 
 
 async def do_devices(devices: dict):
+    """Process the devices in the queue.
+
+    Args:
+        devices (dict): Dictionary of devices.
+    """
     supported_os = ["IOS", "IOS-XR", "IOS-XE", "JunOS", "EOS"]
 
     queue = asyncio.Queue()
@@ -285,9 +275,6 @@ def cli(**cli_args):
             devices_results[prog_args["device"][0]] = do_device(
                 prog_args["device"][0], prog_args["device"][1], prog_args["device"][2]
             )
-            if prog_args["verbose"] >= 2:
-                print("Current memory usage of results dictionary: {}".format(sys.getsizeof(devices_results)))
-
     elif prog_args["seed"]:
         devices = json.load(prog_args["seed"])
 
