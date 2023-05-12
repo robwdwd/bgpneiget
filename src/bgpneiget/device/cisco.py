@@ -6,23 +6,66 @@
 #
 from typing import Type
 
-from scrapli.driver.core import AsyncIOSXEDriver, AsyncIOSXRDriver
+from scrapli.driver.core import AsyncIOSXEDriver, AsyncIOSXRDriver, AsyncNXOSDriver
 
 from bgpneiget.device.base import BaseDevice
 
 
-class IOSDevice(BaseDevice):
-    def bgp_sum_cmd(self) -> str:
-        return "show ip bgp sum"
+class CiscoIOSDevice(BaseDevice):
+    """Cisco IOS and IOS-XE devices."""
 
-    def get_driver(self)-> Type[AsyncIOSXEDriver]:
+    def get_driver(self) -> Type[AsyncIOSXEDriver]:
+        """Get scrapli driver for this device.
+
+        Returns:
+            Type[AsyncIOSXEDriver]: Scrapli Driver
+        """
         return AsyncIOSXEDriver
 
+    def get_ipv4_bgp_sum_cmd(self) -> str:
+        """Get the BGP summary show command for this device.
 
-class IOSXRDevice(BaseDevice):
+        Returns:
+            str: BGP summary show command
+        """
+        return "show ip bgp sum"
 
-    def bgp_sum_cmd(self) -> str:
-        return "show bgp sum"
+
+class CiscoIOSXRDevice(BaseDevice):
+    """Cisco IOS-XR devices."""
 
     def get_driver(self) -> Type[AsyncIOSXRDriver]:
+        """Get scrapli driver for this device.
+
+        Returns:
+            Type[AsyncIOSXRDriver]: Scrapli Driver
+        """
         return AsyncIOSXRDriver
+
+    def get_ipv4_bgp_sum_cmd(self) -> str:
+        """Get the BGP summary show command for this device.
+
+        Returns:
+            str: BGP summary show command
+        """
+        return "show bgp sum"
+
+
+class CiscoNXOSDevice(BaseDevice):
+    """Cisco NX-OS devices."""
+
+    def get_driver(self) -> Type[AsyncNXOSDriver]:
+        """Get scrapli driver for this device.
+
+        Returns:
+            Type[AsyncNXOSDriver]: Scrapli Driver
+        """
+        return AsyncNXOSDriver
+
+    def get_ipv4_bgp_sum_cmd(self) -> str:
+        """Get the BGP summary show command for this device.
+
+        Returns:
+            str: BGP summary show command
+        """
+        return "show bgp sum"

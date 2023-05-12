@@ -10,19 +10,20 @@ from typing import Type
 
 from bgpneiget.device.arista import EOSDevice
 from bgpneiget.device.base import BaseDevice
-from bgpneiget.device.cisco import IOSDevice, IOSXRDevice
+from bgpneiget.device.cisco import CiscoIOSDevice, CiscoIOSXRDevice, CiscoNXOSDevice
 from bgpneiget.device.juniper import JunOsDevice
 
 DEVICE_TYPE_MAP = {
-    "IOS": IOSDevice,
-    "IOS-XR": IOSXRDevice,
-    "IOS-XE": IOSDevice,
+    "IOS": CiscoIOSDevice,
+    "IOS-XR": CiscoIOSXRDevice,
+    "IOS-XE": CiscoIOSDevice,
     "JunOS": JunOsDevice,
     "EOS": EOSDevice,
+    "NX-OS": CiscoNXOSDevice,
 }
 
 
-def init_device(device: dict) -> Type[BaseDevice]:
+async def init_device(device: dict) -> Type[BaseDevice]:
     """Initiase the device into the right class based on the OS.
 
     Args:

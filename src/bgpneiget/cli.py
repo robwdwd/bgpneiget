@@ -15,11 +15,14 @@ import os
 import pprint
 import re
 import sys
+from json import JSONDecodeError
 
 import click
 
 from bgpneiget.devices import init_device
 from bgpneiget.runcmds import get_output
+from bgpneiget.device.base import BaseDevice
+
 
 pp = pprint.PrettyPrinter(indent=2, width=120)
 
@@ -139,7 +142,7 @@ def filter_ri(neighbours, filter_re):
     return results
 
 
-async def device_worker(name: str, queue: asyncio.Queue):
+async def device_worker(name: str, queue: asyncio.Queue, username: str, password: str):
     """Device worker coroutine, reads from the queue until empty.
 
     Args:
@@ -147,40 +150,41 @@ async def device_worker(name: str, queue: asyncio.Queue):
         queue (asyncio.Queue): AsyncIO queue
     """
     while True:
-        device = await queue.get()
+        device: BaseDevice = await queue.get() 
         pp.pprint(device.hostname)
-        pp.pprint(device.bgp_sum_cmd())
+        pp.pprint(device.get_ipv4_bgp_sum_cmd())
         try:
-            response = await get_output(device, device.bgp_sum_cmd(), cfg["username"], cfg["password"])
+            command = device.get_ipv4_bgp_sum_cmd()
+            response = await get_output(device, command, username, password)
             pp.pprint(response.result)
         except Exception as err:
-            print(f"ERROR: Worker {name}, Device failed: {err}", file=sys.stderr)
+            print(f"ERROR: {name}, Device failed: {err}", file=sys.stderr)
 
         # await asyncio.sleep(2)
         queue.task_done()
 
 
-async def do_devices(devices: dict):
+async def do_devices(devices: dict, username: str, password: str):
     """Process the devices in the queue.
 
     Args:
         devices (dict): Dictionary of devices.
     """
-    supported_os = ["IOS", "IOS-XR", "IOS-XE", "JunOS", "EOS"]
+    supported_os = ["IOS", "IOS-XR", "IOS-XE", "JunOS", "EOS", "NX-OS"]
 
     queue = asyncio.Queue()
 
     for device in devices.values():
         if device["os"] in supported_os:
-            d = init_device(device)
-            await queue.put(d)
+            new_device = await init_device(device)
+            await queue.put(new_device)
         else:
             print(f"WARNING: {device['os']} is not a supported OS for device {device['hostname']}.", file=sys.stderr)
 
     # Create three worker tasks to process the queue concurrently.
     tasks = []
     for i in range(3):
-        task = asyncio.create_task(device_worker(f"worker-{i}", queue))
+        task = asyncio.create_task(device_worker(f"worker-{i}", queue, username, password))
         tasks.append(task)
 
     # Wait until the queue is fully processed.
@@ -243,28 +247,23 @@ def cli(**cli_args):
     Raises:
         SystemExit: Error in command line options
     """
-    global prog_args
-    global cfg
-
     prog_args = cli_args
-
-    pp.pprint(prog_args)
 
     cfg = json.load(prog_args["config"])
 
     if prog_args["asignore"] and prog_args["asexcept"]:
         raise SystemExit(
-            "{} error: argument --asignore: not allowed" " with argument --asexcept".format(os.path.basename(__file__))
+            f"{os.path.basename(__file__)} error: argument --asignore: not allowed with argument --asexcept"
         )
 
     if prog_args["seed"] is not None and prog_args["device"] is not None:
         raise SystemExit(
-            "{} error: argument --seed: not allowed" " with argument --device".format(os.path.basename(__file__))
+            f"{os.path.basename(__file__)} error: argument --seed: not allowed with argument --device"
         )
 
     if prog_args["device"]:
         if prog_args["device"][1].lower() not in supported_os:
-            raise SystemExit("ERROR: OS ({})is not supported.".format(prog_args["device"][1]))
+            raise SystemExit("ERROR: OS ({prog_args["device"][1]})is not supported.")
 
         if prog_args["listri"]:
             bgp_neighbours = get_neighbours(prog_args["device"][0], prog_args["device"][1], prog_args["device"][2])
@@ -276,9 +275,12 @@ def cli(**cli_args):
                 prog_args["device"][0], prog_args["device"][1], prog_args["device"][2]
             )
     elif prog_args["seed"]:
-        devices = json.load(prog_args["seed"])
+        try:
+            devices = json.load(prog_args["seed"])
+        except JSONDecodeError as err:
+            raise SystemExit(f"ERROR: Unable to decode json file: {err}") from err
 
-        asyncio.run(do_devices(devices))
+        asyncio.run(do_devices(devices, cfg['username'], cfg['password']))
 
     else:
         raise SystemExit("Required --seed or --device options are missing.")

@@ -12,6 +12,20 @@ from bgpneiget.device.base import BaseDevice
 
 
 class EOSDevice(BaseDevice):
+    """Arista EOS devices."""
 
-    def get_driver(self)-> Type[AsyncEOSDriver]:
+    def get_driver(self) -> Type[AsyncEOSDriver]:
+        """Get scrapli driver for this device.
+
+        Returns:
+            Type[AsyncEOSDriver]: Scrapli Driver
+        """
         return AsyncEOSDriver
+
+    def get_ipv4_bgp_sum_cmd(self) -> str:
+        """Get the BGP summary show command for this device.
+
+        Returns:
+            str: BGP summary show command
+        """
+        return "show bgp sum"

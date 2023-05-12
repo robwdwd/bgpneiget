@@ -35,10 +35,11 @@ async def get_output(
         MultiResponse | Response: Device output
     """
     driver = device.get_driver()
+    driver_options = device.get_driver_options(username, password)
     pp.pprint(driver)
 
     try:
-        async with driver(**device.setup_device_args(username, password)) as net_connect:
+        async with driver(**driver_options) as net_connect:
             if type(cli_cmds) is str:
                 response = await net_connect.send_command(command=cli_cmds, timeout_ops=timeout)
             else:

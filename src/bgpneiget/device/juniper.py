@@ -12,8 +12,20 @@ from bgpneiget.device.base import BaseDevice
 
 
 class JunOsDevice(BaseDevice):
-    def bgp_sum_cmd(self) -> str:
-        return "show bgp sum"
+    """Juniper JunOS devices."""
 
     def get_driver(self) -> Type[AsyncJunosDriver]:
+        """Get scrapli driver for this device.
+
+        Returns:
+            Type[AsyncJunosDriver]: Scrapli Driver
+        """
         return AsyncJunosDriver
+
+    def get_ipv4_bgp_sum_cmd(self) -> str:
+        """Get the BGP summary show command for this device.
+
+        Returns:
+            str: BGP summary show command
+        """
+        return "show bgp sum"

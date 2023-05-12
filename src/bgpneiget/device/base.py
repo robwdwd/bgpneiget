@@ -19,17 +19,27 @@ class BaseDevice:
         "SSH": "asyncssh",
     }
 
+    PLATFORM_MAP = {
+        "IOS": "cisco_iosxe",
+        "IOS-XE": "cisco_iosxe",
+        "IOS-XR": "cisco_iosxr",
+        "JunOS": "juniper_junos",
+        "EOS": "arista_eos",
+        "NX_OS": "cisco_nxos"
+    }
+
     def __init__(self, device: dict) -> None:
         """Init.
 
         Args:
             device (dict): Dictionary of device data.
         """
-        self.os = device["os"]
+        self.platform = self.PLATFORM_MAP[device["os"]]
+        self.os = device['os']
         self.hostname = device["hostname"]
         self.transport = self.PROTOCOL_TRANSPORT_MAP[device["protocol"]]
 
-    def setup_device_args(self, username: str, password: str) -> Dict:
+    def get_driver_options(self, username: str, password: str) -> Dict:
         """Set up some default device arguments.
 
         Args:
@@ -39,14 +49,25 @@ class BaseDevice:
         Returns:
             dict: Host args
         """
-
-        return {
+        driver_options = {
             "host": self.hostname,
-            "auth_strict_key": False,
             "transport": self.transport,
             "auth_username": username,
             "auth_password": password,
         }
+
+        # Add in some extra Kex and Cyphers for legacy devices
+        #
+        if self.transport == "asyncssh":
+            driver_options["transport_options"] = {
+                "asyncssh": {
+                    "kex_algs": "+diffie-hellman-group1-sha1,diffie-hellman-group-exchange-sha1",
+                    "encryption_algs": "+3des-cbc",
+                }
+            }
+            driver_options['auth_strict_key'] = False
+
+        return driver_options
 
     def get_driver(self) -> Type[AsyncNetworkDriver]:
         """Get scrapli driver for this device.
@@ -56,7 +77,7 @@ class BaseDevice:
         """
         return AsyncNetworkDriver
 
-    def bgp_sum_cmd(self) -> str:
+    def get_ipv4_bgp_sum_cmd(self) -> str:
         """Get the BGP Summary show command for this device.
 
         Returns:
