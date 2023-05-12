@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """Get BGP neighbours from network devices."""
-import os
-import sys
-import re
-import pprint
-import json
 import ipaddress
+import json
+import os
+import pprint
+import re
+import sys
+from typing import Union
+
 import click
-
-
-from napalm import get_network_driver
+from scrapli import AsyncScrapli
+from scrapli.response import MultiResponse, Response
 
 pp = pprint.PrettyPrinter(indent=2, width=120)
 
@@ -273,46 +274,25 @@ def cli(**cli_args):
                 print("Current memory usage of results dictionary: {}".format(sys.getsizeof(devices_results)))
 
     elif prog_args["seed"]:
-        seedline_re = re.compile("^(.+);(.+);(.+)$")
+        devices = json.load(prog_args["seed"])
 
-        for seed_line in prog_args["seed"]:
-            seedline = str(seed_line).strip()
-            seed_matches = seedline_re.match(seedline)
-            if seed_matches:
-                hostname = seed_matches.group(1)
-                host_os = seed_matches.group(2)
-                host_transport = seed_matches.group(3)
-
-                if prog_args["verbose"] >= 2:
-                    print(
-                        "DEBUG: Found matching seedline {}. Device: "
-                        "{}, OS: {}, Transport: {}".format(seedline, hostname, host_os, host_transport),
-                        file=sys.stderr,
-                    )
-
-                if host_os in supported_os:
-                    if prog_args["listri"]:
-                        bgp_neighbours = get_neighbours(hostname, host_os, host_transport)
-                        if bgp_neighbours:
-                            print(hostname)
-                            for routing_instance in bgp_neighbours:
-                                print(routing_instance)
-                    else:
-                        devices_results[hostname] = do_device(hostname, host_os, host_transport)
-                        if prog_args["verbose"] >= 2:
-                            print(
-                                "Current memory usage of results dictionary: {}".format(sys.getsizeof(devices_results))
-                            )
-
+        for device in devices.values():
+            pp.pprint(device)
+            continue
+            if device['os'] in supported_os:
+                if prog_args["listri"]:
+                    bgp_neighbours = get_neighbours(hostname, host_os, host_transport)
+                    if bgp_neighbours:
+                        print(hostname)
+                        for routing_instance in bgp_neighbours:
+                            print(routing_instance)
                 else:
-                    print("WARNING: {} is not a supported OS for device {}.".format(host_os, hostname), file=sys.stderr)
+                    devices_results[hostname] = do_device(hostname, host_os, host_transport)
+
+
             else:
-                print("WARNING: Seedline not matched: {} ".format(seedline), file=sys.stderr)
+                print(f"WARNING: {device['os']} is not a supported OS for device {device['hostname']}.", file=sys.stderr)
+
     else:
         raise SystemExit("Required --seed or --device options are missing.")
 
-    if not prog_args["listri"]:
-        print(json.dumps(devices_results, indent=2))
-
-        if prog_args["verbose"] >= 2:
-            print("Current memory usage of results dictionary: {}".format(sys.getsizeof(devices_results)))
