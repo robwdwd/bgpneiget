@@ -262,8 +262,8 @@ def cli(**cli_args):
         )
 
     if prog_args["device"]:
-        if prog_args["device"][1].lower() not in supported_os:
-            raise SystemExit("ERROR: OS ({prog_args["device"][1]})is not supported.")
+        if prog_args["device"][1] not in supported_os:
+            raise SystemExit(f"ERROR: OS ({prog_args['device'][1]}) is not supported.")
 
         if prog_args["listri"]:
             bgp_neighbours = get_neighbours(prog_args["device"][0], prog_args["device"][1], prog_args["device"][2])
