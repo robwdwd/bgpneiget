@@ -165,7 +165,12 @@ async def device_worker(name: str, queue: asyncio.Queue):
         pp.pprint(device)
         pp.pprint(device.hostname)
         pp.pprint(device.bgp_sum_cmd())
-        pp.pprint(get_output(device, cfg["username"], cfg["password"]))
+        try:
+          response = await get_output(device, device.bgp_sum_cmd(), cfg["username"], cfg["password"])
+          pp.pprint(response.result)
+        except Exception as err:
+          print (f"ERROR: Device failed: {err}", file=sys.stderr)
+          
         #await asyncio.sleep(2)
         queue.task_done()
 
