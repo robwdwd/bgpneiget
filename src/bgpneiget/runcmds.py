@@ -5,38 +5,20 @@
 # have been included as part of this distribution.
 #
 """Device command runner."""
-from typing import Union
+import pprint
+from typing import Self, Union
 
 from scrapli import AsyncScrapli
 from scrapli.response import MultiResponse, Response
 
+from bgpneiget.device.base import BaseDevice
 
-def setup_device_args(device: dict, username: str, password: str) -> dict:
-    """Set up some default device arguments.
-
-    Args:
-        hostname (str): Hostname of device
-        device_type (str): Type of device
-
-    Returns:
-        dict: Host args
-    """
-
-    return {
-        "platform": device['os'],
-        "host": device['hostname'],
-        "auth_strict_key": False,
-        "transport": "asyncssh",
-        "auth_username": username,
-        "auth_password": password,
-    }
-
+pp = pprint.PrettyPrinter(indent=2, width=120)
 
 async def get_output(
-    device: dict,
+    device: BaseDevice,
     username: str,
-    password, str,
-    cli_cmds: Union[list[str], str],
+    password: str,
     timeout: int = 60,
 ) -> Union[MultiResponse, Response]:
     """Get existing configuration from router.
@@ -50,10 +32,9 @@ async def get_output(
     Returns:
         MultiResponse | Response: Device output
     """
-    host = setup_device_args(device, username, password)
 
     try:
-        async with AsyncScrapli(**host) as net_connect:
+        async with device.get_driver(**device.setup_device_args(username, password)) as net_connect:
             if type(cli_cmds) is str:
                 response = await net_connect.send_command(command=cli_cmds, timeout_ops=timeout)
             else:
@@ -62,4 +43,5 @@ async def get_output(
         raise err
 
     return response
+
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Get BGP neighbours from network devices."""
+import asyncio
 import ipaddress
 import json
 import os
@@ -11,6 +12,9 @@ from typing import Union
 import click
 from scrapli import AsyncScrapli
 from scrapli.response import MultiResponse, Response
+
+from bgpneiget.devices import init_device
+from bgpneiget.runcmds import get_output
 
 pp = pprint.PrettyPrinter(indent=2, width=120)
 
@@ -104,30 +108,6 @@ def parse_neighbours(neighbours):
     return results
 
 
-def get_neighbours(host, device_os, transport="ssh"):
-    """Get BGP neighbours from network device.
-
-    Args:
-        host (str): Hostname of network device.
-        device_os (str): OS of the network Device.
-        transport (str, optional): Network device transport type. telnet or ssh. Defaults to "ssh".
-
-    Returns:
-        dict: BGP Neighbours from device.
-    """
-    optional_args = {"transport": transport.lower()}
-
-    driver = get_network_driver(device_os)
-    # Connect and open the device with napalm and run commands.
-    #
-    try:
-        with driver(host, cfg["username"], cfg["password"], optional_args=optional_args) as device:
-            return device.get_bgp_neighbors()
-    except Exception as error_msg:
-        print("ERROR: Connecting to {} failed: {}".format(host, error_msg), file=sys.stderr)
-        return None
-
-
 def filter_ri(neighbours, filter_re):
     """Filter neighbours based on routing instance match.
 
@@ -179,6 +159,43 @@ def do_device(hostname, device_os, transport="ssh"):
     return results
 
 
+async def device_worker(name: str, queue: asyncio.Queue):
+    while True:
+        device = await queue.get()
+        pp.pprint(device)
+        pp.pprint(device.hostname)
+        pp.pprint(device.bgp_sum_cmd())
+        pp.pprint(get_output(device, cfg["username"], cfg["password"]))
+        #await asyncio.sleep(2)
+        queue.task_done()
+
+
+async def do_devices(devices: dict):
+    supported_os = ["IOS", "IOS-XR", "IOS-XE", "JunOS", "EOS"]
+
+    queue = asyncio.Queue()
+
+    for device in devices.values():
+        if device["os"] in supported_os:
+            d = init_device(device)
+            await queue.put(d)
+        else:
+            print(f"WARNING: {device['os']} is not a supported OS for device {device['hostname']}.", file=sys.stderr)
+
+    # Create three worker tasks to process the queue concurrently.
+    tasks = []
+    for i in range(3):
+        task = asyncio.create_task(device_worker(f"worker-{i}", queue))
+        tasks.append(task)
+
+    # Wait until the queue is fully processed.
+    await queue.join()
+
+    # Cancel our worker tasks.
+    for task in tasks:
+        task.cancel()
+
+
 @click.command()
 @click.option(
     "--config",
@@ -219,10 +236,9 @@ def do_device(hostname, device_os, transport="ssh"):
     multiple=True,
     help="Filter out all AS number except this one. Can be used multiple times.",
 )
-@click.option("--asignore", 
-    type=int, metavar="ASNUM", 
-    multiple=True,
-    help="AS number to filter out. Can be used multiple times.")
+@click.option(
+    "--asignore", type=int, metavar="ASNUM", multiple=True, help="AS number to filter out. Can be used multiple times."
+)
 @click.option(
     "--ri", default="global", help="Regular expressions of routing instances / vrfs to match. Default 'global'"
 )
@@ -242,20 +258,14 @@ def cli(**cli_args):
     cfg = json.load(prog_args["config"])
 
     if prog_args["asignore"] and prog_args["asexcept"]:
-
         raise SystemExit(
             "{} error: argument --asignore: not allowed" " with argument --asexcept".format(os.path.basename(__file__))
         )
 
     if prog_args["seed"] is not None and prog_args["device"] is not None:
-
         raise SystemExit(
             "{} error: argument --seed: not allowed" " with argument --device".format(os.path.basename(__file__))
         )
-
-    supported_os = ["ios", "ios-xr", "junos", "eos"]
-
-    devices_results = {}
 
     if prog_args["device"]:
         if prog_args["device"][1].lower() not in supported_os:
@@ -276,23 +286,7 @@ def cli(**cli_args):
     elif prog_args["seed"]:
         devices = json.load(prog_args["seed"])
 
-        for device in devices.values():
-            pp.pprint(device)
-            continue
-            if device['os'] in supported_os:
-                if prog_args["listri"]:
-                    bgp_neighbours = get_neighbours(hostname, host_os, host_transport)
-                    if bgp_neighbours:
-                        print(hostname)
-                        for routing_instance in bgp_neighbours:
-                            print(routing_instance)
-                else:
-                    devices_results[hostname] = do_device(hostname, host_os, host_transport)
-
-
-            else:
-                print(f"WARNING: {device['os']} is not a supported OS for device {device['hostname']}.", file=sys.stderr)
+        asyncio.run(do_devices(devices))
 
     else:
         raise SystemExit("Required --seed or --device options are missing.")
-
