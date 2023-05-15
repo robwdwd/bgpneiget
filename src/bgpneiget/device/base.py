@@ -39,6 +39,7 @@ class BaseDevice:
         self.hostname = device["hostname"]
         self.transport = self.PROTOCOL_TRANSPORT_MAP[device["protocol"]]
 
+
     def get_driver_options(self, username: str, password: str) -> Dict:
         """Set up some default device arguments.
 
@@ -84,3 +85,13 @@ class BaseDevice:
             str: BGP summary show command
         """
         return ""
+
+    def get_ipv6_bgp_sum_cmd(self) -> str:
+        """Get the BGP summary show command for this device.
+
+        Returns:
+            str: BGP summary show command
+        """
+        return ""
+
+

@@ -13,9 +13,11 @@ import ipaddress
 import json
 import os
 import pprint
+from concurrent.futures import ThreadPoolExecutor
 import re
 import sys
 from json import JSONDecodeError
+import textfsm
 
 import click
 
@@ -141,7 +143,7 @@ def filter_ri(neighbours, filter_re):
     return results
 
 
-async def device_worker(name: str, queue: asyncio.Queue, username: str, password: str):
+async def device_worker(name: str, queue: asyncio.Queue, username: str, password: str, fsm):
     """Device worker coroutine, reads from the queue until empty.
 
     Args:
@@ -151,21 +153,24 @@ async def device_worker(name: str, queue: asyncio.Queue, username: str, password
     while True:
         device: BaseDevice = await queue.get() 
         pp.pprint(device.hostname)
-        pp.pprint(device.get_ipv4_bgp_sum_cmd())
         try:
-            command = device.get_ipv4_bgp_sum_cmd()
-            response = await get_output(device, command, username, password)
-            pp.pprint(response.result)
-            result = await device.process_bgp_neighbours(response.result)
+            commands = [device.get_ipv4_bgp_sum_cmd(), device.get_ipv6_bgp_sum_cmd()]
+            response = await get_output(device, commands, username, password)
+    
+            for resp in response.data:
+              pp.pprint(resp.raw_result)
+              pp.pprint(resp.failed)
+
+            device_output = "\n".join(resp.result for resp in response.data)
+
+            result = await device.process_bgp_neighbours(device_output, fsm)
             pp.pprint(result)
         except Exception as err:
             print(f"ERROR: {name}, Device failed: {err}", file=sys.stderr)
-
-        # await asyncio.sleep(2)
         queue.task_done()
 
 
-async def do_devices(devices: dict, username: str, password: str):
+async def do_devices(devices: dict, username: str, password: str, fsm):
     """Process the devices in the queue.
 
     Args:
@@ -185,7 +190,7 @@ async def do_devices(devices: dict, username: str, password: str):
     # Create three worker tasks to process the queue concurrently.
     tasks = []
     for i in range(3):
-        task = asyncio.create_task(device_worker(f"worker-{i}", queue, username, password))
+        task = asyncio.create_task(device_worker(f"worker-{i}", queue, username, password, fsm))
         tasks.append(task)
 
     # Wait until the queue is fully processed.
@@ -281,7 +286,16 @@ def cli(**cli_args):
         except JSONDecodeError as err:
             raise SystemExit(f"ERROR: Unable to decode json file: {err}") from err
 
-        asyncio.run(do_devices(devices, cfg['username'], cfg['password']))
+        # Load the textFSM template for parsing cisco BGP output
+        #
+        template_file = script_dir =  os.path.join(os.path.dirname(__file__), 'textfsm/cisco_iosxe_show_ip_bgp_sum.textfsm')
+        try:
+          with open(template_file) as template:
+              fsm = textfsm.TextFSM(template)
+        except OSError as err:
+            raise SystemExit(f"ERROR: Unable to open textfsm template: {err}") from err
+
+        asyncio.run(do_devices(devices, cfg['username'], cfg['password'], fsm))
 
     else:
         raise SystemExit("Required --seed or --device options are missing.")

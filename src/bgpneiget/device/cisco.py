@@ -6,6 +6,10 @@
 #
 import pprint
 from typing import Type
+import os
+
+from concurrent.futures import ThreadPoolExecutor
+import asyncio
 
 import textfsm
 from scrapli.driver.core import AsyncIOSXEDriver, AsyncIOSXRDriver, AsyncNXOSDriver
@@ -18,11 +22,11 @@ pp = pprint.PrettyPrinter(indent=2, width=120)
 class CiscoDevice(BaseDevice):
     """Base class for all Cisco Devices"""
 
-    async def process_bgp_neighbours(self, output: str) -> list:
-        with open("textfsm/cisco_iosxe_show_ip_bgp_sum.textfsm") as template:
-            fsm = textfsm.TextFSM(template)
-            result = fsm.ParseText(output)
-            return result
+    async def process_bgp_neighbours(self, output: str, fsm) -> list:
+        pp.pprint(fsm)
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(None, fsm.ParseText, output)
+        return result
 
 
 class CiscoIOSDevice(CiscoDevice):
@@ -44,6 +48,14 @@ class CiscoIOSDevice(CiscoDevice):
         """
         return "show ip bgp sum"
 
+    def get_ipv6_bgp_sum_cmd(self) -> str:
+        """Get the BGP summary show command for this device.
+
+        Returns:
+            str: BGP summary show command
+        """
+        return "show bgp ipv6 unicast summary"
+
 
 class CiscoIOSXRDevice(CiscoDevice):
     """Cisco IOS-XR devices."""
@@ -62,7 +74,15 @@ class CiscoIOSXRDevice(CiscoDevice):
         Returns:
             str: BGP summary show command
         """
-        return "show bgp sum"
+        return "show bgp sum wide"
+
+    def get_ipv6_bgp_sum_cmd(self) -> str:
+        """Get the BGP summary show command for this device.
+
+        Returns:
+            str: BGP summary show command
+        """
+        return "show bgp ipv6 unicast summary wide"
 
 
 class CiscoNXOSDevice(CiscoDevice):
@@ -83,3 +103,11 @@ class CiscoNXOSDevice(CiscoDevice):
             str: BGP summary show command
         """
         return "show bgp sum"
+
+    def get_ipv6_bgp_sum_cmd(self) -> str:
+        """Get the BGP summary show command for this device.
+
+        Returns:
+            str: BGP summary show command
+        """
+        return "show bgp ipv6 unicast summary"
