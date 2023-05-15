@@ -14,14 +14,15 @@ from bgpneiget.device.base import BaseDevice
 
 pp = pprint.PrettyPrinter(indent=2, width=120)
 
+
 class CiscoDevice(BaseDevice):
     """Base class for all Cisco Devices"""
 
-    async def process_bgp_neighbours(self, output: str):
-        with open('textfsm/cisco_iosxe_show_ip_bgp_sum.textfsm') as template:
+    async def process_bgp_neighbours(self, output: str) -> list:
+        with open("textfsm/cisco_iosxe_show_ip_bgp_sum.textfsm") as template:
             fsm = textfsm.TextFSM(template)
             result = fsm.ParseText(output)
-            pp.pprint(result)
+            return result
 
 
 class CiscoIOSDevice(CiscoDevice):

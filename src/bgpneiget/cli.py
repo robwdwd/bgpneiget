@@ -19,10 +19,9 @@ from json import JSONDecodeError
 
 import click
 
+from bgpneiget.device.base import BaseDevice
 from bgpneiget.devices import init_device
 from bgpneiget.runcmds import get_output
-from bgpneiget.device.base import BaseDevice
-
 
 pp = pprint.PrettyPrinter(indent=2, width=120)
 
@@ -157,6 +156,8 @@ async def device_worker(name: str, queue: asyncio.Queue, username: str, password
             command = device.get_ipv4_bgp_sum_cmd()
             response = await get_output(device, command, username, password)
             pp.pprint(response.result)
+            result = await device.process_bgp_neighbours(response.result)
+            pp.pprint(result)
         except Exception as err:
             print(f"ERROR: {name}, Device failed: {err}", file=sys.stderr)
 
