@@ -94,4 +94,5 @@ class BaseDevice:
         """
         return ""
 
-
+    async def process_bgp_neighbours(self, output: str, prog_args: dict) -> list:
+        return []

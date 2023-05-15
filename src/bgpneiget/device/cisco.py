@@ -4,15 +4,13 @@
 # "BSD 2-Clause License". Please see the LICENSE file that should
 # have been included as part of this distribution.
 #
+import asyncio
+import ipaddress
 import pprint
 from typing import Type
-import os
 
-from concurrent.futures import ThreadPoolExecutor
-import asyncio
-
-import textfsm
 from scrapli.driver.core import AsyncIOSXEDriver, AsyncIOSXRDriver, AsyncNXOSDriver
+from textfsm import TextFSM
 
 from bgpneiget.device.base import BaseDevice
 
@@ -22,10 +20,60 @@ pp = pprint.PrettyPrinter(indent=2, width=120)
 class CiscoDevice(BaseDevice):
     """Base class for all Cisco Devices"""
 
-    async def process_bgp_neighbours(self, output: str, fsm) -> list:
+    async def process_bgp_neighbours(self, output: str, prog_args: dict) -> list:
+        fsm: TextFSM = prog_args["fsm"]
         pp.pprint(fsm)
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(None, fsm.ParseText, output)
+
+        pp.pprint(result)
+
+        results = {}
+        for neighbour in result:
+            addr = ipaddress.ip_address(neighbour)
+
+            # If this is a private IP address then continue
+            # unless the rfc1918 argument was given
+            #
+            if (not prog_args["rfc1918"]) and addr.is_private:
+                if prog_args["verbose"] >= 2:
+                    print("DEBUG: Skipping neighbour {} with a " "private IP.".format(neighbour), file=sys.stderr)
+                continue
+
+            if prog_args["verbose"] >= 1:
+                print("DEBUG: Found neighbour {}".format(neighbour), file=sys.stderr)
+
+            ipversion = addr.version
+
+            if ipversion == 4:
+                address_family = "ipv4"
+                if prog_args["verbose"] >= 2:
+                    print("DEBUG: Neighbour {} has an IPv4 address.".format(neighbour), file=sys.stderr)
+            elif ipversion == 6:
+                address_family = "ipv6"
+                if prog_args["verbose"] >= 2:
+                    print("DEBUG: Neighbour {} has an IPv6 address.".format(neighbour), file=sys.stderr)
+            else:
+                print("ERROR: Can not find an address family for neighbour {}.".format(neighbour), file=sys.stderr)
+                continue
+
+            as_number = neighbours[neighbour]["remote_as"]
+
+            if prog_args["asexcept"] and (as_number not in prog_args["asexcept"]):
+                continue
+
+            if prog_args["asignore"] and as_number in prog_args["asignore"]:
+                continue
+
+            results[neighbour] = {
+                "as": as_number,
+                "description": neighbours[neighbour]["description"],
+                "ip_version": ipversion,
+                "is_up": neighbours[neighbour]["is_up"],
+                "is_enabled": neighbours[neighbour]["is_enabled"],
+                "dual_stack": False,
+            }
+
         return result
 
 

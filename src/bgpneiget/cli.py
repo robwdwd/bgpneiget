@@ -13,22 +13,18 @@ import ipaddress
 import json
 import os
 import pprint
-from concurrent.futures import ThreadPoolExecutor
 import re
 import sys
 from json import JSONDecodeError
-import textfsm
 
 import click
+from textfsm import TextFSM
 
 from bgpneiget.device.base import BaseDevice
 from bgpneiget.devices import init_device
 from bgpneiget.runcmds import get_output
 
 pp = pprint.PrettyPrinter(indent=2, width=120)
-
-prog_args = {}
-cfg = {}
 
 
 def parse_neighbours(neighbours):
@@ -40,79 +36,35 @@ def parse_neighbours(neighbours):
     Returns:
         dict: Parsed neighbour list.
     """
-    results = {}
-    for neighbour in neighbours:
-        addr = ipaddress.ip_address(neighbour)
 
-        # If this is a private IP address then continue
-        # unless the rfc1918 argument was given
-        #
-        if (not prog_args["rfc1918"]) and addr.is_private:
-            if prog_args["verbose"] >= 2:
-                print("DEBUG: Skipping neighbour {} with a " "private IP.".format(neighbour), file=sys.stderr)
-            continue
 
-        if prog_args["verbose"] >= 1:
-            print("DEBUG: Found neighbour {}".format(neighbour), file=sys.stderr)
+    # Check to see if ipv4 and ipv6 is enabled on this neighbour
 
-        ipversion = addr.version
+    if neighbours[neighbour]["is_up"]:
+        results[neighbour]["routes"] = {}
+        results[neighbour]["routes"][address_family] = neighbours[neighbour]["address_family"][address_family]
 
-        if ipversion == 4:
-            address_family = "ipv4"
-            if prog_args["verbose"] >= 2:
-                print("DEBUG: Neighbour {} has an IPv4 address.".format(neighbour), file=sys.stderr)
-        elif ipversion == 6:
-            address_family = "ipv6"
-            if prog_args["verbose"] >= 2:
-                print("DEBUG: Neighbour {} has an IPv6 address.".format(neighbour), file=sys.stderr)
-        else:
-            print("ERROR: Can not find an address family for neighbour {}.".format(neighbour), file=sys.stderr)
-            continue
+        # IPv4 BGP neighbour with IPv6 routes.
+        if ipversion == 4 and "ipv6" in neighbours[neighbour]["address_family"]:
+            # If sent_prefixes is -1 then ipv6 routes are not enabled on this neighbour (mainly for JunOS)
+            if neighbours[neighbour]["address_family"]["ipv6"]["sent_prefixes"] != -1:
+                results[neighbour]["routes"]["ipv6"] = neighbours[neighbour]["address_family"]["ipv6"]
+                results[neighbour]["dual_stack"] = True
+                if prog_args["verbose"] >= 2:
+                    print("DEBUG: Neighbour {} is multi-protocol.".format(neighbour), file=sys.stderr)
 
-        as_number = neighbours[neighbour]["remote_as"]
-
-        if prog_args["asexcept"] and (as_number not in prog_args["asexcept"]):
-            continue
-
-        if prog_args["asignore"] and as_number in prog_args["asignore"]:
-            continue
-
-        results[neighbour] = {
-            "as": as_number,
-            "description": neighbours[neighbour]["description"],
-            "ip_version": ipversion,
-            "is_up": neighbours[neighbour]["is_up"],
-            "is_enabled": neighbours[neighbour]["is_enabled"],
-            "dual_stack": False,
-        }
-
-        # Check to see if ipv4 and ipv6 is enabled on this neighbour
-
-        if neighbours[neighbour]["is_up"]:
-            results[neighbour]["routes"] = {}
-            results[neighbour]["routes"][address_family] = neighbours[neighbour]["address_family"][address_family]
-
-            # IPv4 BGP neighbour with IPv6 routes.
-            if ipversion == 4 and "ipv6" in neighbours[neighbour]["address_family"]:
-                # If sent_prefixes is -1 then ipv6 routes are not enabled on this neighbour (mainly for JunOS)
-                if neighbours[neighbour]["address_family"]["ipv6"]["sent_prefixes"] != -1:
-                    results[neighbour]["routes"]["ipv6"] = neighbours[neighbour]["address_family"]["ipv6"]
-                    results[neighbour]["dual_stack"] = True
-                    if prog_args["verbose"] >= 2:
-                        print("DEBUG: Neighbour {} is multi-protocol.".format(neighbour), file=sys.stderr)
-
-            # IPv6 BGP neighbour with IPv4 routes.
-            if ipversion == 6 and "ipv4" in neighbours[neighbour]["address_family"]:
-                # If sent_prefixes is -1 then ipv4 routes are not enabled on this neighbour (mainly for JunOS)
-                if neighbours[neighbour]["address_family"]["ipv4"]["sent_prefixes"] != -1:
-                    results[neighbour]["routes"]["ipv4"] = neighbours[neighbour]["address_family"]["ipv4"]
-                    results[neighbour]["dual_stack"] = True
-                    if prog_args["verbose"] >= 2:
-                        print("DEBUG: Neighbour {} is multi-protocol.".format(neighbour), file=sys.stderr)
-        else:
-            results[neighbour]["routes"] = None
-            if prog_args["verbose"] >= 2:
-                print("DEBUG: Neighbour {} is down.".format(neighbour), file=sys.stderr)
+        # IPv6 BGP neighbour with IPv4 routes.
+        if ipversion == 6 and "ipv4" in neighbours[neighbour]["address_family"]:
+            # If sent_prefixes is -1 then ipv4 routes are not enabled on this neighbour (mainly for JunOS)
+            if neighbours[neighbour]["address_family"]["ipv4"]["sent_prefixes"] != -1:
+                results[neighbour]["routes"]["ipv4"] = neighbours[neighbour]["address_family"]["ipv4"]
+                results[neighbour]["dual_stack"] = True
+                if prog_args["verbose"] >= 2:
+                    print("DEBUG: Neighbour {} is multi-protocol.".format(neighbour), file=sys.stderr)
+    else:
+        results[neighbour]["routes"] = None
+        if prog_args["verbose"] >= 2:
+            print("DEBUG: Neighbour {} is down.".format(neighbour), file=sys.stderr)
 
     return results
 
@@ -143,7 +95,7 @@ def filter_ri(neighbours, filter_re):
     return results
 
 
-async def device_worker(name: str, queue: asyncio.Queue, username: str, password: str, fsm):
+async def device_worker(name: str, queue: asyncio.Queue, prog_args: dict):
     """Device worker coroutine, reads from the queue until empty.
 
     Args:
@@ -151,26 +103,26 @@ async def device_worker(name: str, queue: asyncio.Queue, username: str, password
         queue (asyncio.Queue): AsyncIO queue
     """
     while True:
-        device: BaseDevice = await queue.get() 
+        device: BaseDevice = await queue.get()
         pp.pprint(device.hostname)
         try:
             commands = [device.get_ipv4_bgp_sum_cmd(), device.get_ipv6_bgp_sum_cmd()]
-            response = await get_output(device, commands, username, password)
-    
+            response = await get_output(device, commands, prog_args["username"], prog_args["password"])
+
             for resp in response.data:
-              pp.pprint(resp.raw_result)
-              pp.pprint(resp.failed)
+                pp.pprint(resp.raw_result)
+                pp.pprint(resp.failed)
 
             device_output = "\n".join(resp.result for resp in response.data)
 
-            result = await device.process_bgp_neighbours(device_output, fsm)
+            result = await device.process_bgp_neighbours(device_output, prog_args)
             pp.pprint(result)
         except Exception as err:
             print(f"ERROR: {name}, Device failed: {err}", file=sys.stderr)
         queue.task_done()
 
 
-async def do_devices(devices: dict, username: str, password: str, fsm):
+async def do_devices(devices: dict, prog_args: dict):
     """Process the devices in the queue.
 
     Args:
@@ -190,7 +142,7 @@ async def do_devices(devices: dict, username: str, password: str, fsm):
     # Create three worker tasks to process the queue concurrently.
     tasks = []
     for i in range(3):
-        task = asyncio.create_task(device_worker(f"worker-{i}", queue, username, password, fsm))
+        task = asyncio.create_task(device_worker(f"worker-{i}", queue, prog_args))
         tasks.append(task)
 
     # Wait until the queue is fully processed.
@@ -217,7 +169,7 @@ async def do_devices(devices: dict, username: str, password: str, fsm):
     "-s",
     "--seed",
     type=click.File(mode="r"),
-    help="Seedfile with devices to connect to listed one per line in format <device>;<OS>.",
+    help="Json seedfile with devices to connect to.",
 )
 @click.option(
     "-d",
@@ -255,47 +207,58 @@ def cli(**cli_args):
     """
     prog_args = cli_args
 
-    cfg = json.load(prog_args["config"])
+    cfg = json.load(cli_args["config"])
 
-    if prog_args["asignore"] and prog_args["asexcept"]:
+    if cli_args["asignore"] and cli_args["asexcept"]:
         raise SystemExit(
             f"{os.path.basename(__file__)} error: argument --asignore: not allowed with argument --asexcept"
         )
 
-    if prog_args["seed"] is not None and prog_args["device"] is not None:
-        raise SystemExit(
-            f"{os.path.basename(__file__)} error: argument --seed: not allowed with argument --device"
-        )
+    if cli_args["seed"] is not None and cli_args["device"] is not None:
+        raise SystemExit(f"{os.path.basename(__file__)} error: argument --seed: not allowed with argument --device")
 
-    if prog_args["device"]:
-        if prog_args["device"][1] not in supported_os:
-            raise SystemExit(f"ERROR: OS ({prog_args['device'][1]}) is not supported.")
-
-        if prog_args["listri"]:
-            bgp_neighbours = get_neighbours(prog_args["device"][0], prog_args["device"][1], prog_args["device"][2])
+    if cli_args["device"]:
+        if cli_args["listri"]:
+            bgp_neighbours = get_neighbours(cli_args["device"][0], cli_args["device"][1], cli_args["device"][2])
             if bgp_neighbours:
                 for routing_instance in bgp_neighbours:
                     print(routing_instance)
         else:
-            devices_results[prog_args["device"][0]] = do_device(
-                prog_args["device"][0], prog_args["device"][1], prog_args["device"][2]
-            )
-    elif prog_args["seed"]:
+            devices = {
+                cli_args["device"][0]: {
+                    "hostname": cli_args["device"][0],
+                    "os": cli_args["device"][1],
+                    "transport": cli_args["device"][2],
+                }
+            }
+            asyncio.run(do_devices(devices, prog_args))
+
+    elif cli_args["seed"]:
         try:
-            devices = json.load(prog_args["seed"])
+            devices = json.load(cli_args["seed"])
         except JSONDecodeError as err:
             raise SystemExit(f"ERROR: Unable to decode json file: {err}") from err
 
         # Load the textFSM template for parsing cisco BGP output
         #
-        template_file = script_dir =  os.path.join(os.path.dirname(__file__), 'textfsm/cisco_iosxe_show_ip_bgp_sum.textfsm')
+        fsm = None
+        template_file = os.path.join(os.path.dirname(__file__), "textfsm/cisco_iosxe_show_ip_bgp_sum.textfsm")
         try:
-          with open(template_file) as template:
-              fsm = textfsm.TextFSM(template)
+            with open(template_file) as template:
+                fsm = TextFSM(template)
         except OSError as err:
             raise SystemExit(f"ERROR: Unable to open textfsm template: {err}") from err
 
-        asyncio.run(do_devices(devices, cfg['username'], cfg['password'], fsm))
+        prog_args = {
+            "username": cfg["username"],
+            "password": cfg["password"],
+            "except_as": cli_args["asexcept"],
+            "ignore_as": cli_args["asignore"],
+            "rfc1918": cli_args["rfc1918"],
+            "fsm": fsm,
+        }
+
+        asyncio.run(do_devices(devices, prog_args))
 
     else:
         raise SystemExit("Required --seed or --device options are missing.")
