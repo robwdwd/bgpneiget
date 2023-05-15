@@ -37,7 +37,6 @@ def parse_neighbours(neighbours):
         dict: Parsed neighbour list.
     """
 
-
     # Check to see if ipv4 and ipv6 is enabled on this neighbour
 
     if neighbours[neighbour]["is_up"]:
@@ -104,21 +103,18 @@ async def device_worker(name: str, queue: asyncio.Queue, prog_args: dict):
     """
     while True:
         device: BaseDevice = await queue.get()
-        pp.pprint(device.hostname)
-        try:
-            commands = [device.get_ipv4_bgp_sum_cmd(), device.get_ipv6_bgp_sum_cmd()]
-            response = await get_output(device, commands, prog_args["username"], prog_args["password"])
 
-            for resp in response.data:
-                pp.pprint(resp.raw_result)
-                pp.pprint(resp.failed)
+        try:
+            commands = device.get_bgp_sum_cmd()
+            response = await get_output(device, commands, prog_args["username"], prog_args["password"])
 
             device_output = "\n".join(resp.result for resp in response.data)
 
-            result = await device.process_bgp_neighbours(device_output, prog_args)
+            result = await device.process_bgp_neighbours(device.platform, device_output, prog_args)
             pp.pprint(result)
         except Exception as err:
             print(f"ERROR: {name}, Device failed: {err}", file=sys.stderr)
+
         queue.task_done()
 
 
@@ -177,7 +173,7 @@ async def do_devices(devices: dict, prog_args: dict):
     nargs=3,
     type=str,
     metavar=("HOSTNAME", "OS", "TRANSPORT"),
-    help="Single device to connect to along with the device OS and transport (SSH or Telnet)",
+    help="Single device to connect to along with the device OS and transport (SSH or TELNET)",
 )
 @click.option(
     "--listri",
@@ -245,11 +241,17 @@ def cli(**cli_args):
 
     # Load the textFSM template for parsing cisco BGP output
     #
-    fsm = None
-    template_file = os.path.join(os.path.dirname(__file__), "textfsm/cisco_iosxe_show_ip_bgp_sum.textfsm")
+    fsm = {}
+
     try:
+        template_file = os.path.join(os.path.dirname(__file__), "textfsm/cisco_iosxe_show_bgp.textfsm")
         with open(template_file) as template:
-            fsm = TextFSM(template)
+            fsm["cisco_iosxe"] = TextFSM(template)
+
+        template_file = os.path.join(os.path.dirname(__file__), "textfsm/cisco_iosxr_show_bgp.textfsm")
+        with open(template_file) as template:
+            fsm["cisco_iosxr"] = TextFSM(template)
+
     except OSError as err:
         raise SystemExit(f"ERROR: Unable to open textfsm template: {err}") from err
 
@@ -264,4 +266,3 @@ def cli(**cli_args):
     }
 
     asyncio.run(do_devices(devices, prog_args))
-

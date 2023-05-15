@@ -21,8 +21,8 @@ pp = pprint.PrettyPrinter(indent=2, width=120)
 class CiscoDevice(BaseDevice):
     """Base class for all Cisco Devices"""
 
-    async def process_bgp_neighbours(self, output: str, prog_args: dict) -> list:
-        fsm: TextFSM = prog_args["fsm"]
+    async def process_bgp_neighbours(self, platform: str, output: str, prog_args: dict) -> list:
+        fsm: TextFSM = prog_args["fsm"][platform]
         pp.pprint(fsm)
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(None, fsm.ParseText, output)
@@ -68,18 +68,18 @@ class CiscoDevice(BaseDevice):
 
             is_up = False
             if neighbour[6].isdigit():
-              is_up = True
-              
-            routing_instance = 'global'
+                is_up = True
+
+            routing_instance = "global"
             if neighbour[2]:
-              routing_instance =  neighbour[2]
+                routing_instance = neighbour[2]
 
             results[str(addr)] = {
                 "as": as_number,
                 "ip_version": ipversion,
                 "is_up": is_up,
             }
-      
+
         return results
 
 
@@ -94,21 +94,13 @@ class CiscoIOSDevice(CiscoDevice):
         """
         return AsyncIOSXEDriver
 
-    def get_ipv4_bgp_sum_cmd(self) -> str:
+    def get_bgp_cmd(self) -> list:
         """Get the BGP summary show command for this device.
 
         Returns:
             str: BGP summary show command
         """
-        return "show ip bgp sum"
-
-    def get_ipv6_bgp_sum_cmd(self) -> str:
-        """Get the BGP summary show command for this device.
-
-        Returns:
-            str: BGP summary show command
-        """
-        return "show bgp ipv6 unicast summary"
+        return ["show ip bgp sum", "show bgp ipv6 unicast summary"]
 
 
 class CiscoIOSXRDevice(CiscoDevice):
@@ -122,21 +114,18 @@ class CiscoIOSXRDevice(CiscoDevice):
         """
         return AsyncIOSXRDriver
 
-    def get_ipv4_bgp_sum_cmd(self) -> str:
+    def get_bgp_cmd(self) -> list:
         """Get the BGP summary show command for this device.
 
         Returns:
             str: BGP summary show command
         """
-        return "show bgp sum wide"
-
-    def get_ipv6_bgp_sum_cmd(self) -> str:
-        """Get the BGP summary show command for this device.
-
-        Returns:
-            str: BGP summary show command
-        """
-        return "show bgp ipv6 unicast summary wide"
+        return [
+            "show bgp vrf all ipv4 unicast summary",
+            "show bgp instance all ipv4 unicast summary",
+            "show bgp vrf all ipv6 unicast summary",
+            "show bgp instance all ipv6 unicast summary",
+        ]
 
 
 class CiscoNXOSDevice(CiscoDevice):
@@ -150,18 +139,10 @@ class CiscoNXOSDevice(CiscoDevice):
         """
         return AsyncNXOSDriver
 
-    def get_ipv4_bgp_sum_cmd(self) -> str:
+    def get_bgp_sum_cmd(self) -> list:
         """Get the BGP summary show command for this device.
 
         Returns:
             str: BGP summary show command
         """
-        return "show bgp sum"
-
-    def get_ipv6_bgp_sum_cmd(self) -> str:
-        """Get the BGP summary show command for this device.
-
-        Returns:
-            str: BGP summary show command
-        """
-        return "show bgp ipv6 unicast summary"
+        return ["show bgp sum", "show bgp ipv6 unicast summary"]

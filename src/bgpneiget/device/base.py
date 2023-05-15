@@ -78,21 +78,13 @@ class BaseDevice:
         """
         return AsyncNetworkDriver
 
-    def get_ipv4_bgp_sum_cmd(self) -> str:
+    def get_bgp_sum_cmd(self) -> list:
         """Get the BGP Summary show command for this device.
 
         Returns:
             str: BGP summary show command
         """
-        return ""
+        return []
 
-    def get_ipv6_bgp_sum_cmd(self) -> str:
-        """Get the BGP summary show command for this device.
-
-        Returns:
-            str: BGP summary show command
-        """
-        return ""
-
-    async def process_bgp_neighbours(self, output: str, prog_args: dict) -> list:
+    async def process_bgp_neighbours(self, platform: str, output: str, prog_args: dict) -> list:
         return []
