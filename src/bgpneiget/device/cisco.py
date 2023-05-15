@@ -7,6 +7,7 @@
 import asyncio
 import ipaddress
 import pprint
+import sys
 from typing import Type
 
 from scrapli.driver.core import AsyncIOSXEDriver, AsyncIOSXRDriver, AsyncNXOSDriver
@@ -30,7 +31,7 @@ class CiscoDevice(BaseDevice):
 
         results = {}
         for neighbour in result:
-            addr = ipaddress.ip_address(neighbour)
+            addr = ipaddress.ip_address(neighbour[3])
 
             # If this is a private IP address then continue
             # unless the rfc1918 argument was given
@@ -57,24 +58,29 @@ class CiscoDevice(BaseDevice):
                 print("ERROR: Can not find an address family for neighbour {}.".format(neighbour), file=sys.stderr)
                 continue
 
-            as_number = neighbours[neighbour]["remote_as"]
+            as_number = int(neighbour[4])
 
-            if prog_args["asexcept"] and (as_number not in prog_args["asexcept"]):
+            if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
                 continue
 
-            if prog_args["asignore"] and as_number in prog_args["asignore"]:
+            if prog_args["ignore_as"] and as_number in prog_args["ignore_as"]:
                 continue
 
-            results[neighbour] = {
+            is_up = False
+            if neighbour[6].isdigit():
+              is_up = True
+              
+            routing_instance = 'global'
+            if neighbour[2]:
+              routing_instance =  neighbour[2]
+
+            results[str(addr)] = {
                 "as": as_number,
-                "description": neighbours[neighbour]["description"],
                 "ip_version": ipversion,
-                "is_up": neighbours[neighbour]["is_up"],
-                "is_enabled": neighbours[neighbour]["is_enabled"],
-                "dual_stack": False,
+                "is_up": is_up,
             }
-
-        return result
+      
+        return results
 
 
 class CiscoIOSDevice(CiscoDevice):

@@ -217,6 +217,8 @@ def cli(**cli_args):
     if cli_args["seed"] is not None and cli_args["device"] is not None:
         raise SystemExit(f"{os.path.basename(__file__)} error: argument --seed: not allowed with argument --device")
 
+    devices = {}
+
     if cli_args["device"]:
         if cli_args["listri"]:
             bgp_neighbours = get_neighbours(cli_args["device"][0], cli_args["device"][1], cli_args["device"][2])
@@ -228,10 +230,9 @@ def cli(**cli_args):
                 cli_args["device"][0]: {
                     "hostname": cli_args["device"][0],
                     "os": cli_args["device"][1],
-                    "transport": cli_args["device"][2],
+                    "protocol": cli_args["device"][2],
                 }
             }
-            asyncio.run(do_devices(devices, prog_args))
 
     elif cli_args["seed"]:
         try:
@@ -239,26 +240,28 @@ def cli(**cli_args):
         except JSONDecodeError as err:
             raise SystemExit(f"ERROR: Unable to decode json file: {err}") from err
 
-        # Load the textFSM template for parsing cisco BGP output
-        #
-        fsm = None
-        template_file = os.path.join(os.path.dirname(__file__), "textfsm/cisco_iosxe_show_ip_bgp_sum.textfsm")
-        try:
-            with open(template_file) as template:
-                fsm = TextFSM(template)
-        except OSError as err:
-            raise SystemExit(f"ERROR: Unable to open textfsm template: {err}") from err
-
-        prog_args = {
-            "username": cfg["username"],
-            "password": cfg["password"],
-            "except_as": cli_args["asexcept"],
-            "ignore_as": cli_args["asignore"],
-            "rfc1918": cli_args["rfc1918"],
-            "fsm": fsm,
-        }
-
-        asyncio.run(do_devices(devices, prog_args))
-
     else:
         raise SystemExit("Required --seed or --device options are missing.")
+
+    # Load the textFSM template for parsing cisco BGP output
+    #
+    fsm = None
+    template_file = os.path.join(os.path.dirname(__file__), "textfsm/cisco_iosxe_show_ip_bgp_sum.textfsm")
+    try:
+        with open(template_file) as template:
+            fsm = TextFSM(template)
+    except OSError as err:
+        raise SystemExit(f"ERROR: Unable to open textfsm template: {err}") from err
+
+    prog_args = {
+        "username": cfg["username"],
+        "password": cfg["password"],
+        "except_as": cli_args["asexcept"],
+        "verbose": cli_args["verbose"],
+        "ignore_as": cli_args["asignore"],
+        "rfc1918": cli_args["rfc1918"],
+        "fsm": fsm,
+    }
+
+    asyncio.run(do_devices(devices, prog_args))
+
