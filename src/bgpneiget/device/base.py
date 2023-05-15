@@ -25,7 +25,7 @@ class BaseDevice:
         "IOS-XR": "cisco_iosxr",
         "JunOS": "juniper_junos",
         "EOS": "arista_eos",
-        "NX_OS": "cisco_nxos"
+        "NX_OS": "cisco_nxos",
     }
 
     def __init__(self, device: dict) -> None:
@@ -35,10 +35,9 @@ class BaseDevice:
             device (dict): Dictionary of device data.
         """
         self.platform = self.PLATFORM_MAP[device["os"]]
-        self.os = device['os']
+        self.os = device["os"]
         self.hostname = device["hostname"]
         self.transport = self.PROTOCOL_TRANSPORT_MAP[device["protocol"]]
-
 
     def get_driver_options(self, username: str, password: str) -> Dict:
         """Set up some default device arguments.
@@ -66,7 +65,7 @@ class BaseDevice:
                     "encryption_algs": "+3des-cbc",
                 }
             }
-            driver_options['auth_strict_key'] = False
+            driver_options["auth_strict_key"] = False
 
         return driver_options
 
@@ -87,4 +86,14 @@ class BaseDevice:
         return []
 
     async def process_bgp_neighbours(self, platform: str, output: str, prog_args: dict) -> list:
+        """Process BGP neigbour output. (Must be overriden in child Class).
+
+        Args:
+            platform (str): Device Platform
+            output (str): Output from network device
+            prog_args (dict): Program arguments
+
+        Returns:
+            list: BGP Neighbours
+        """
         return []

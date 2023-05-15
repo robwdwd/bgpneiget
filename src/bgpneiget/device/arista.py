@@ -22,10 +22,10 @@ class EOSDevice(BaseDevice):
         """
         return AsyncEOSDriver
 
-    def get_ipv4_bgp_sum_cmd(self) -> str:
+    def get_bgp_cmd(self) -> list:
         """Get the BGP summary show command for this device.
 
         Returns:
             str: BGP summary show command
         """
-        return "show bgp sum"
+        return ["show bgp sum"]

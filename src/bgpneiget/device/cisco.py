@@ -19,12 +19,21 @@ pp = pprint.PrettyPrinter(indent=2, width=120)
 
 
 class CiscoDevice(BaseDevice):
-    """Base class for all Cisco Devices"""
+    """Base class for all Cisco Devices."""
 
-    async def process_bgp_neighbours(self, platform: str, output: str, prog_args: dict) -> list:
-        pp.pprint(platform)
+    async def process_bgp_neighbours(self, platform: str, output: str, prog_args: dict) -> dict:
+        """Process the BGP Neigbour output from devices through textFSM.
+
+        Args:
+            platform (str): Device platform
+            output (str): Output from network device
+            prog_args (dict): Program arguments, asignore etc.
+
+        Returns:
+            dict: BGP Neighbours
+        """
         fsm: TextFSM = prog_args["fsm"][platform]
-        pp.pprint(fsm)
+
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(None, fsm.ParseText, output)
 
@@ -39,26 +48,13 @@ class CiscoDevice(BaseDevice):
             #
             if (not prog_args["rfc1918"]) and addr.is_private:
                 if prog_args["verbose"] >= 2:
-                    print("DEBUG: Skipping neighbour {} with a " "private IP.".format(neighbour), file=sys.stderr)
+                    print(f"DEBUG: Skipping neighbour {neighbour} with a " "private IP.", file=sys.stderr)
                 continue
 
             if prog_args["verbose"] >= 1:
-                print("DEBUG: Found neighbour {}".format(neighbour), file=sys.stderr)
+                print(f"DEBUG: Found neighbour {neighbour}", file=sys.stderr)
 
             ipversion = addr.version
-
-            if ipversion == 4:
-                address_family = "ipv4"
-                if prog_args["verbose"] >= 2:
-                    print("DEBUG: Neighbour {} has an IPv4 address.".format(neighbour), file=sys.stderr)
-            elif ipversion == 6:
-                address_family = "ipv6"
-                if prog_args["verbose"] >= 2:
-                    print("DEBUG: Neighbour {} has an IPv6 address.".format(neighbour), file=sys.stderr)
-            else:
-                print("ERROR: Can not find an address family for neighbour {}.".format(neighbour), file=sys.stderr)
-                continue
-
             as_number = int(neighbour[4])
 
             if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
