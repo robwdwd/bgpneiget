@@ -6,6 +6,7 @@ Value NEIGH_AS (\d+)
 Value UP_DOWN (\S+?)
 Value STATE_PFXRCD (\S+?\s+\S+?|\S+?)
 
+
 Start
   ^For\s+address\s+family:\s+${ADDR_FAMILY}$$
   ^BGP\s+router\s+identifier\s+${ROUTER_ID},\s+local\s+AS\s+number\s+${LOCAL_AS}\s*$$

@@ -103,12 +103,17 @@ async def device_worker(name: str, queue: asyncio.Queue, prog_args: dict):
     """
     while True:
         device: BaseDevice = await queue.get()
+        pp.pprint(device)
 
         try:
-            commands = device.get_bgp_sum_cmd()
+            commands = device.get_bgp_cmd()
+            pp.pprint(commands)
             response = await get_output(device, commands, prog_args["username"], prog_args["password"])
 
+
             device_output = "\n".join(resp.result for resp in response.data)
+
+            pp.pprint(device.platform)
 
             result = await device.process_bgp_neighbours(device.platform, device_output, prog_args)
             pp.pprint(result)

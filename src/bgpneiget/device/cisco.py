@@ -22,6 +22,7 @@ class CiscoDevice(BaseDevice):
     """Base class for all Cisco Devices"""
 
     async def process_bgp_neighbours(self, platform: str, output: str, prog_args: dict) -> list:
+        pp.pprint(platform)
         fsm: TextFSM = prog_args["fsm"][platform]
         pp.pprint(fsm)
         loop = asyncio.get_running_loop()
@@ -75,9 +76,11 @@ class CiscoDevice(BaseDevice):
                 routing_instance = neighbour[2]
 
             results[str(addr)] = {
-                "as": as_number,
+                "remote_asn": as_number,
+                "local_asn": int(neighbour[1]),
                 "ip_version": ipversion,
                 "is_up": is_up,
+                "routing_instance": routing_instance,
             }
 
         return results
@@ -121,10 +124,10 @@ class CiscoIOSXRDevice(CiscoDevice):
             str: BGP summary show command
         """
         return [
-            "show bgp vrf all ipv4 unicast summary",
-            "show bgp instance all ipv4 unicast summary",
-            "show bgp vrf all ipv6 unicast summary",
-            "show bgp instance all ipv6 unicast summary",
+            "show bgp vrf all ipv4 unicast summary wide",
+            "show bgp instance all ipv4 unicast summary wide",
+            "show bgp vrf all ipv6 unicast summary wide",
+            "show bgp instance all ipv6 unicast summary wide",
         ]
 
 
@@ -139,7 +142,7 @@ class CiscoNXOSDevice(CiscoDevice):
         """
         return AsyncNXOSDriver
 
-    def get_bgp_sum_cmd(self) -> list:
+    def get_bgp_cmd(self) -> list:
         """Get the BGP summary show command for this device.
 
         Returns:

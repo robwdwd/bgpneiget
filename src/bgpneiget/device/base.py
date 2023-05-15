@@ -78,7 +78,7 @@ class BaseDevice:
         """
         return AsyncNetworkDriver
 
-    def get_bgp_sum_cmd(self) -> list:
+    def get_bgp_cmd(self) -> list:
         """Get the BGP Summary show command for this device.
 
         Returns:
