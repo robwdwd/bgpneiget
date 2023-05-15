@@ -4,14 +4,27 @@
 # "BSD 2-Clause License". Please see the LICENSE file that should
 # have been included as part of this distribution.
 #
+import pprint
 from typing import Type
 
+import textfsm
 from scrapli.driver.core import AsyncIOSXEDriver, AsyncIOSXRDriver, AsyncNXOSDriver
 
 from bgpneiget.device.base import BaseDevice
 
+pp = pprint.PrettyPrinter(indent=2, width=120)
 
-class CiscoIOSDevice(BaseDevice):
+class CiscoDevice(BaseDevice):
+    """Base class for all Cisco Devices"""
+
+    async def process_bgp_neighbours(self, output: str):
+        with open('textfsm/cisco_iosxe_show_ip_bgp_sum.textfsm') as template:
+            fsm = textfsm.TextFSM(template)
+            result = fsm.ParseText(output)
+            pp.pprint(result)
+
+
+class CiscoIOSDevice(CiscoDevice):
     """Cisco IOS and IOS-XE devices."""
 
     def get_driver(self) -> Type[AsyncIOSXEDriver]:
@@ -31,7 +44,7 @@ class CiscoIOSDevice(BaseDevice):
         return "show ip bgp sum"
 
 
-class CiscoIOSXRDevice(BaseDevice):
+class CiscoIOSXRDevice(CiscoDevice):
     """Cisco IOS-XR devices."""
 
     def get_driver(self) -> Type[AsyncIOSXRDriver]:
@@ -51,7 +64,7 @@ class CiscoIOSXRDevice(BaseDevice):
         return "show bgp sum"
 
 
-class CiscoNXOSDevice(BaseDevice):
+class CiscoNXOSDevice(CiscoDevice):
     """Cisco NX-OS devices."""
 
     def get_driver(self) -> Type[AsyncNXOSDriver]:
