@@ -118,6 +118,7 @@ async def do_devices(devices: dict, prog_args: dict):
 
     Args:
         devices (dict): Dictionary of devices.
+        prog_args (dict): Program arguments.
     """
     supported_os = ["IOS", "IOS-XR", "IOS-XE", "JunOS", "EOS", "NX-OS"]
 

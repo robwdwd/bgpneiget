@@ -6,12 +6,13 @@
 #
 """Base Class for all device types."""
 
+from abc import ABC, abstractmethod
 from typing import Dict, Type
 
 from scrapli.driver import AsyncNetworkDriver
 
 
-class BaseDevice:
+class BaseDevice(ABC):
     """Base Class for all device types."""
 
     PROTOCOL_TRANSPORT_MAP = {
@@ -68,7 +69,8 @@ class BaseDevice:
             driver_options["auth_strict_key"] = False
 
         return driver_options
-
+    
+    @abstractmethod
     def get_driver(self) -> Type[AsyncNetworkDriver]:
         """Get scrapli driver for this device.
 
@@ -77,16 +79,27 @@ class BaseDevice:
         """
         return AsyncNetworkDriver
 
-    def get_bgp_cmd(self) -> list:
-        """Get the BGP Summary show command for this device.
+    @abstractmethod
+    def get_bgp_cmd_global(self, address_family: str = "ipv4") -> str:
+        """Get the BGP summary show command for this device.
 
         Returns:
             str: BGP summary show command
         """
-        return []
+        return ""
 
-    async def process_bgp_neighbours(self, platform: str, output: str, prog_args: dict) -> list:
-        """Process BGP neigbour output. (Must be overriden in child Class).
+    @abstractmethod
+    def get_bgp_cmd_vrfs(self, address_family: str = "ipv4") -> str:
+        """Get the BGP summary show command for this device.
+
+        Returns:
+            str: BGP summary show command
+        """
+        return ""
+
+    @abstractmethod
+    def process_bgp_neighbours(self, platform: str, output: str, prog_args: dict) -> list:
+        """Process BGP neigbour output.
 
         Args:
             platform (str): Device Platform
