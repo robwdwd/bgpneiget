@@ -23,7 +23,7 @@ pp = pprint.PrettyPrinter(indent=2, width=120)
 class CiscoDevice(BaseDevice):
     """Base class for all Cisco Devices."""
 
-    def process_bgp_neighbours(self, platform: str, output: str, prog_args: dict) -> dict:
+    def process_bgp_neighbours(self, output: str, prog_args: dict) -> dict:
         """Process the BGP Neigbour output from devices through textFSM.
 
         Args:
@@ -34,7 +34,6 @@ class CiscoDevice(BaseDevice):
         Returns:
             dict: BGP Neighbours
         """
-
         try:
             template_file = os.path.join(os.path.dirname(__file__), "../textfsm/cisco_iosxr_show_bgp.textfsm")
             with open(template_file) as template:
@@ -95,7 +94,15 @@ class CiscoIOSXRDevice(CiscoDevice):
         """
         return AsyncIOSXRDriver
 
-    async def get_neighbours(self, prog_args: dict):
+    async def get_neighbours(self, prog_args: dict) -> dict:
+        """Get BGP neighbours from device.
+
+        Args:
+            prog_args (dict): Program arguments
+
+        Returns:
+            dict: Found BGP neighbours
+        """
         commands = {}
 
         if not prog_args["no_ipv4"]:
@@ -158,22 +165,61 @@ class CiscoIOSDevice(CiscoDevice):
         """
         return AsyncIOSXEDriver
 
+    async def get_neighbours(self, prog_args: dict) -> dict:
+        """Get BGP neighbours from device.
+
+        Args:
+            prog_args (dict): Program arguments
+
+        Returns:
+            dict: Found BGP neighbours
+        """
+        commands = {}
+
+        if not prog_args["no_ipv4"]:
+            commands["ipv4"] = self.get_bgp_cmd_global()
+
+        if not prog_args["no_ipv6"]:
+            commands["ipv6"] = self.get_bgp_cmd_global("ipv6")
+
+        if prog_args["vpnv4"]:
+            commands["vpnv4"] = self.get_bgp_cmd_global("vpnv4")
+
+        if prog_args["vpnv6"]:
+            commands["vpnv6"] = self.get_bgp_cmd_global("vpnv6")
+
+        pp.pprint(commands)
+        response = await get_output(self, commands, prog_args["username"], prog_args["password"])
+
+        result = {}
+
+        loop = asyncio.get_running_loop()
+
+        for addrf in response:
+            parsed_result = await loop.run_in_executor(
+                None, self.process_bgp_neighbours, self.platform, response[addrf], prog_args
+            )
+            if len(parsed_result) > 0:
+                result[addrf] = parsed_result
+
+        return result
+
     def get_bgp_cmd_global(self, address_family: str = "ipv4") -> str:
         """Get the BGP summary show command for this device.
 
         Returns:
             str: BGP summary show command
         """
-        return "show ip bgp summary"
+        if address_family == "ipv4":
+            return "show ip bgp summary"
+        elif address_family == "ipv6":
+            return "show bgp ipv6 unicast summary"
+        elif address_family == "vpnv4":
+            return "show ip bgp vpnv4 all summary"
+        elif address_family == "vpnv6":
+            return "show ip bgp vpnv6 unicast all summary"
 
-    def get_bgp_cmd_vrfs(self, address_family: str = "ipv4") -> str:
-        """Get the BGP summary show command for this device.
-
-        Returns:
-            str: BGP summary show command
-        """
-        return "show bgp ipv6 unicast summary"
-
+        return ""
 
 class CiscoNXOSDevice(CiscoDevice):
     """Cisco NX-OS devices."""

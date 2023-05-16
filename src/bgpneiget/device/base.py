@@ -69,7 +69,7 @@ class BaseDevice(ABC):
             driver_options["auth_strict_key"] = False
 
         return driver_options
-    
+
     @abstractmethod
     def get_driver(self) -> Type[AsyncNetworkDriver]:
         """Get scrapli driver for this device.
@@ -77,7 +77,6 @@ class BaseDevice(ABC):
         Returns:
             Type[AsyncNetworkDriver]: Scrapli Driver
         """
-        return AsyncNetworkDriver
 
     @abstractmethod
     def get_bgp_cmd_global(self, address_family: str = "ipv4") -> str:
@@ -86,19 +85,20 @@ class BaseDevice(ABC):
         Returns:
             str: BGP summary show command
         """
-        return ""
 
     @abstractmethod
-    def get_bgp_cmd_vrfs(self, address_family: str = "ipv4") -> str:
-        """Get the BGP summary show command for this device.
+    async def get_neighbours(self, prog_args: dict) -> dict:
+        """Get BGP neighbours from device.
+
+        Args:
+            prog_args (dict): Program arguments
 
         Returns:
-            str: BGP summary show command
+            dict: Found BGP neighbours
         """
-        return ""
 
     @abstractmethod
-    def process_bgp_neighbours(self, platform: str, output: str, prog_args: dict) -> list:
+    def process_bgp_neighbours(self, output: str, prog_args: dict) -> list:
         """Process BGP neigbour output.
 
         Args:
@@ -109,4 +109,3 @@ class BaseDevice(ABC):
         Returns:
             list: BGP Neighbours
         """
-        return []
