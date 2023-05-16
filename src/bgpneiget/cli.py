@@ -103,12 +103,10 @@ async def device_worker(name: str, queue: asyncio.Queue, prog_args: dict):
     """
     while True:
         device: BaseDevice = await queue.get()
-        pp.pprint(device)
 
         try:
             result = await device.get_neighbours(prog_args)
-
-        #            pp.pprint(result)
+            pp.pprint(result)
         except Exception as err:
             print(f"ERROR: {name}, Device failed: {err}", file=sys.stderr)
 
@@ -201,9 +199,6 @@ def cli(**cli_args):
     Raises:
         SystemExit: Error in command line options
     """
-    pp.pprint(cli_args)
-    prog_args = cli_args
-
     cfg = json.load(cli_args["config"])
 
     if cli_args["asignore"] and cli_args["asexcept"]:

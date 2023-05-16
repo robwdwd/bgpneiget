@@ -36,15 +36,13 @@ class CiscoDevice(BaseDevice):
         """
 
         try:
-            template_file = os.path.join(os.path.dirname(__file__), "textfsm/cisco_iosxr_show_bgp.textfsm")
+            template_file = os.path.join(os.path.dirname(__file__), "../textfsm/cisco_iosxr_show_bgp.textfsm")
             with open(template_file) as template:
                 fsm = TextFSM(template)
 
         except OSError as err:
             raise OSError(f"ERROR: Unable to open textfsm template: {err}") from err
             
-
-
         pp.pprint(output)
 
         loop = asyncio.get_running_loop()
@@ -148,13 +146,13 @@ class CiscoIOSXRDevice(CiscoDevice):
         if not prog_args["no_ipv4"]:
             commands['ipv4'] = self.get_bgp_cmd_global()
             if prog_args["with_vrfs"]:
-              commands['vpnv4_vrfs'] = self.get_bgp_cmd_vrfs('ipv4')
+              commands['ipv4_vrfs'] = self.get_bgp_cmd_vrfs('ipv4')
 
 
         if not prog_args["no_ipv6"]:
             commands['ipv6'] = self.get_bgp_cmd_global('ipv6')
             if prog_args["with_vrfs"]:
-              commands['vpnv6_vrfs'] = self.get_bgp_cmd_vrfs('ipv6')
+              commands['ipv6_vrfs'] = self.get_bgp_cmd_vrfs('ipv6')
 
 
         if prog_args["vpnv4"]:
@@ -166,11 +164,13 @@ class CiscoIOSXRDevice(CiscoDevice):
         pp.pprint(commands)
         response = await get_output(self, commands, prog_args["username"], prog_args["password"])
 
+        result = {}
+
         for addrf in response:
             pp.pprint(addrf)
-            result = await self.process_bgp_neighbours(self.platform, response[addrf], prog_args)
+            result[addrf] = await self.process_bgp_neighbours(self.platform, response[addrf], prog_args)
 
-        return response
+        return result
 
 
     def get_bgp_cmd_global(self, address_family: str = 'ipv4') -> str:
