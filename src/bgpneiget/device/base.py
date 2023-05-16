@@ -98,12 +98,11 @@ class BaseDevice(ABC):
         """
 
     @abstractmethod
-    def process_bgp_neighbours(self, output: str, prog_args: dict) -> list:
+    def process_bgp_neighbours(self, result: list, prog_args: dict) -> list:
         """Process BGP neigbour output.
 
         Args:
-            platform (str): Device Platform
-            output (str): Output from network device
+            result (list): Parsed output from network device
             prog_args (dict): Program arguments
 
         Returns:

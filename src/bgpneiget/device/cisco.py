@@ -23,7 +23,7 @@ pp = pprint.PrettyPrinter(indent=2, width=120)
 class CiscoDevice(BaseDevice):
     """Base class for all Cisco Devices."""
 
-    def process_bgp_neighbours(self, output: str, prog_args: dict) -> dict:
+    def parse_bgp_neighbours(self, output: str, filename: str) -> list:
         """Process the BGP Neigbour output from devices through textFSM.
 
         Args:
@@ -35,7 +35,7 @@ class CiscoDevice(BaseDevice):
             dict: BGP Neighbours
         """
         try:
-            template_file = os.path.join(os.path.dirname(__file__), "../textfsm/cisco_iosxr_show_bgp.textfsm")
+            template_file = os.path.join(os.path.dirname(__file__), f"../textfsm/{filename}")
             with open(template_file) as template:
                 fsm = TextFSM(template)
 
@@ -47,7 +47,18 @@ class CiscoDevice(BaseDevice):
         result = fsm.ParseText(output)
 
         pp.pprint(result)
+        return result
 
+    def process_bgp_neighbours(self, result: list, prog_args: dict) -> dict:
+        """Process the BGP Neigbour output from devices through textFSM.
+
+        Args:
+            result (list): Parsed output from network device
+            prog_args (dict): Program arguments, asignore etc.
+
+        Returns:
+            dict: BGP Neighbours
+        """
         results = {}
         for neighbour in result:
             addr = ipaddress.ip_address(neighbour[3])
@@ -130,10 +141,10 @@ class CiscoIOSXRDevice(CiscoDevice):
 
         for addrf in response:
             parsed_result = await loop.run_in_executor(
-                None, self.process_bgp_neighbours, response[addrf], prog_args
+                None, self.parse_bgp_neighbours, response[addrf], "cisco_iosxr_show_bgp.textfsm"
             )
             if len(parsed_result) > 0:
-                result[addrf] = parsed_result
+                result[addrf] = self.process_bgp_neighbours(parsed_result, prog_args)
 
         return result
 
@@ -197,10 +208,10 @@ class CiscoIOSDevice(CiscoDevice):
 
         for addrf in response:
             parsed_result = await loop.run_in_executor(
-                None, self.process_bgp_neighbours, response[addrf], prog_args
+                None, self.parse_bgp_neighbours, response[addrf], "cisco_iosxe_show_bgp.textfsm"
             )
             if len(parsed_result) > 0:
-                result[addrf] = parsed_result
+                result[addrf] = self.process_bgp_neighbours(parsed_result, prog_args)
 
         return result
 
@@ -220,6 +231,7 @@ class CiscoIOSDevice(CiscoDevice):
             return "show ip bgp vpnv6 unicast all summary"
 
         return ""
+
 
 class CiscoNXOSDevice(CiscoDevice):
     """Cisco NX-OS devices."""
