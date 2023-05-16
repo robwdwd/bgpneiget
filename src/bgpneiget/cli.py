@@ -106,9 +106,9 @@ async def device_worker(name: str, queue: asyncio.Queue, prog_args: dict):
         pp.pprint(device)
 
         try:
-            result = await device.get_neighbours(device, prog_args)
+            result = await device.get_neighbours(prog_args)
 
-            pp.pprint(result)
+#            pp.pprint(result)
         except Exception as err:
             print(f"ERROR: {name}, Device failed: {err}", file=sys.stderr)
 
@@ -179,6 +179,7 @@ async def do_devices(devices: dict, prog_args: dict):
 )
 @click.option("--vpnv4", is_flag=True, help="Include Layer 3 VPN IPv4 neighbours.")
 @click.option("--vpnv6", is_flag=True, help="Include Layer 3 VPN IPv6 neighbours.")
+@click.option("--with-vrfs", is_flag=True, help="Include neighbours in vrfs/routing instance.")
 @click.option("--no-ipv4", is_flag=True, help="Exclude IPv4 neighbours.")
 @click.option("--no-ipv6", is_flag=True, help="Exclude IPv6 neighbours.")
 @click.option(
@@ -200,6 +201,7 @@ def cli(**cli_args):
     Raises:
         SystemExit: Error in command line options
     """
+    pp.pprint(cli_args)
     prog_args = cli_args
 
     cfg = json.load(cli_args["config"])
@@ -262,8 +264,9 @@ def cli(**cli_args):
         "ignore_as": cli_args["asignore"],
         "vpnv4": cli_args["vpnv4"],
         "vpnv6": cli_args["vpnv6"],
-        "no_ipv4": cli_args["no-ipv4"],
-        "no_ipv6": cli_args["no-ipv6"],
+        "no_ipv4": cli_args["no_ipv4"],
+        "no_ipv6": cli_args["no_ipv6"],
+        "with_vrfs": cli_args["with_vrfs"],
         "fsm": fsm,
     }
 

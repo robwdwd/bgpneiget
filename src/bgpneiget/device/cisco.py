@@ -35,10 +35,14 @@ class CiscoDevice(BaseDevice):
         """
         fsm: TextFSM = prog_args["fsm"][platform]
 
+        pp.pprint(output)
+
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(None, fsm.ParseText, output)
 
         pp.pprint(result)
+
+        return result
 
         results = {}
         for neighbour in result:
@@ -131,28 +135,33 @@ class CiscoIOSXRDevice(CiscoDevice):
 
         commands = {}
 
-        if not prog_args["exclude_ipv4"]
+        if not prog_args["no_ipv4"]:
             commands['ipv4'] = self.get_bgp_cmd_global()
+            if prog_args["with_vrfs"]:
+              commands['vpnv4_vrfs'] = self.get_bgp_cmd_vrfs('ipv4')
 
-        if not prog_args["exclude_ipv6"]
+
+        if not prog_args["no_ipv6"]:
             commands['ipv6'] = self.get_bgp_cmd_global('ipv6')
+            if prog_args["with_vrfs"]:
+              commands['vpnv6_vrfs'] = self.get_bgp_cmd_vrfs('ipv6')
 
-        if prog_args["vpnv4"]
+
+        if prog_args["vpnv4"]:
             commands['vpnv4'] = self.get_bgp_cmd_global('vpnv4')
 
-        if prog_args["vpnv6"]
+        if prog_args["vpnv6"]:
             commands['vpnv6'] = self.get_bgp_cmd_global('vpnv6')
-
  
         pp.pprint(commands)
         response = await get_output(self, commands, prog_args["username"], prog_args["password"])
 
+        for addrf in response:
+            pp.pprint(addrf)
+            result = await self.process_bgp_neighbours(self.platform, response[addrf], prog_args)
+
         return response
-        # device_output = "\n".join(resp.result for resp in response.data)
 
-        # pp.pprint(device.platform)
-
-        # result = await device.process_bgp_neighbours(device.platform, device_output, prog_args)
 
     def get_bgp_cmd_global(self, address_family: str = 'ipv4') -> str:
         """Get the BGP summary show command for this device.
@@ -161,6 +170,14 @@ class CiscoIOSXRDevice(CiscoDevice):
             str: BGP summary show command
         """
         return f"show bgp instance all {address_family} unicast summary"
+
+    def get_bgp_cmd_vrfs(self, address_family: str = 'ipv4') -> str:
+        """Get the BGP summary show command for this device.
+
+        Returns:
+            str: BGP summary show command
+        """
+        return f"show bgp vrf all {address_family} unicast summary"
 
 
 

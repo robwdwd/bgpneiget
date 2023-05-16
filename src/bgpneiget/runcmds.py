@@ -37,10 +37,14 @@ async def get_output(
 
     result = {}
 
+    print(driver)
+
     try:
         async with driver(**driver_options) as net_connect:
-            for addrf, command in cli_cmds:
-                result[addrf] = await net_connect.send_command(command=command, timeout_ops=timeout)
+            for addrf in cli_cmds:
+                print(addrf)
+                response = await net_connect.send_command(command=cli_cmds[addrf], timeout_ops=timeout)
+                result[addrf] = response.result
     except Exception as err:
         raise err
 
