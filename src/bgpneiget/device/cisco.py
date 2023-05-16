@@ -14,6 +14,7 @@ from scrapli.driver.core import AsyncIOSXEDriver, AsyncIOSXRDriver, AsyncNXOSDri
 from textfsm import TextFSM
 
 from bgpneiget.device.base import BaseDevice
+from bgpneiget.runcmds import get_output
 
 pp = pprint.PrettyPrinter(indent=2, width=120)
 
@@ -113,18 +114,54 @@ class CiscoIOSXRDevice(CiscoDevice):
         """
         return AsyncIOSXRDriver
 
-    def get_bgp_cmd(self) -> list:
+    # prog_args = {
+    #     "username": cfg["username"],
+    #     "password": cfg["password"],
+    #     "except_as": cli_args["asexcept"],
+    #     "verbose": cli_args["verbose"],
+    #     "ignore_as": cli_args["asignore"],
+    #     "vpnv4": cli_args["vpnv4"],
+    #     "vpnv6": cli_args["vpnv6"],
+    #     "exclude_ipv4": cli_args["exclude-ipv4"],
+    #     "exclude_ipv6": cli_args["exclude-ipv6"],
+    #     "fsm": fsm,
+    # }
+
+    async def get_neighbours(self, prog_args: dict):
+
+        commands = {}
+
+        if not prog_args["exclude_ipv4"]
+            commands['ipv4'] = self.get_bgp_cmd_global()
+
+        if not prog_args["exclude_ipv6"]
+            commands['ipv6'] = self.get_bgp_cmd_global('ipv6')
+
+        if prog_args["vpnv4"]
+            commands['vpnv4'] = self.get_bgp_cmd_global('vpnv4')
+
+        if prog_args["vpnv6"]
+            commands['vpnv6'] = self.get_bgp_cmd_global('vpnv6')
+
+ 
+        pp.pprint(commands)
+        response = await get_output(self, commands, prog_args["username"], prog_args["password"])
+
+        return response
+        # device_output = "\n".join(resp.result for resp in response.data)
+
+        # pp.pprint(device.platform)
+
+        # result = await device.process_bgp_neighbours(device.platform, device_output, prog_args)
+
+    def get_bgp_cmd_global(self, address_family: str = 'ipv4') -> str:
         """Get the BGP summary show command for this device.
 
         Returns:
             str: BGP summary show command
         """
-        return [
-            "show bgp vrf all ipv4 unicast summary",
-            "show bgp instance all ipv4 unicast summary",
-            "show bgp vrf all ipv6 unicast summary",
-            "show bgp instance all ipv6 unicast summary",
-        ]
+        return f"show bgp instance all {address_family} unicast summary"
+
 
 
 class CiscoNXOSDevice(CiscoDevice):

@@ -6,20 +6,20 @@
 #
 """Device command runner."""
 
-from typing import List
+from typing import Dict
 
-from scrapli.response import MultiResponse
+from scrapli.response import Response
 
 from bgpneiget.device.base import BaseDevice
 
 
 async def get_output(
     device: BaseDevice,
-    cli_cmds: List[str],
+    cli_cmds: Dict[str, str],
     username: str,
     password: str,
     timeout: int = 60,
-) -> MultiResponse:
+) -> Dict[str, Response]:
     """Get existing configuration from router.
 
     Args:
@@ -35,10 +35,13 @@ async def get_output(
     driver = device.get_driver()
     driver_options = device.get_driver_options(username, password)
 
+    result = {}
+
     try:
         async with driver(**driver_options) as net_connect:
-            response = await net_connect.send_commands(commands=cli_cmds, timeout_ops=timeout)
+            for addrf, command in cli_cmds:
+                result[addrf] = await net_connect.send_command(command=command, timeout_ops=timeout)
     except Exception as err:
         raise err
 
-    return response
+    return result

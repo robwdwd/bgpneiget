@@ -106,16 +106,8 @@ async def device_worker(name: str, queue: asyncio.Queue, prog_args: dict):
         pp.pprint(device)
 
         try:
-            commands = device.get_bgp_cmd()
-            pp.pprint(commands)
-            response = await get_output(device, commands, prog_args["username"], prog_args["password"])
+            result = await device.get_neighbours(device, prog_args)
 
-
-            device_output = "\n".join(resp.result for resp in response.data)
-
-            pp.pprint(device.platform)
-
-            result = await device.process_bgp_neighbours(device.platform, device_output, prog_args)
             pp.pprint(result)
         except Exception as err:
             print(f"ERROR: {name}, Device failed: {err}", file=sys.stderr)
@@ -185,8 +177,10 @@ async def do_devices(devices: dict, prog_args: dict):
     is_flag=True,
     help="Lists all routing instances / vrf found on the device. Will not process the bgp neighbours.",
 )
-@click.option("--privateas", is_flag=True, help="Include private AS numbers.")
-@click.option("--rfc1918", is_flag=True, help="Include neighbours with RFC1918 addresses.")
+@click.option("--vpnv4", is_flag=True, help="Include Layer 3 VPN IPv4 neighbours.")
+@click.option("--vpnv6", is_flag=True, help="Include Layer 3 VPN IPv6 neighbours.")
+@click.option("--no-ipv4", is_flag=True, help="Exclude IPv4 neighbours.")
+@click.option("--no-ipv6", is_flag=True, help="Exclude IPv6 neighbours.")
 @click.option(
     "--asexcept",
     type=int,
@@ -266,7 +260,10 @@ def cli(**cli_args):
         "except_as": cli_args["asexcept"],
         "verbose": cli_args["verbose"],
         "ignore_as": cli_args["asignore"],
-        "rfc1918": cli_args["rfc1918"],
+        "vpnv4": cli_args["vpnv4"],
+        "vpnv6": cli_args["vpnv6"],
+        "no_ipv4": cli_args["no-ipv4"],
+        "no_ipv6": cli_args["no-ipv6"],
         "fsm": fsm,
     }
 
