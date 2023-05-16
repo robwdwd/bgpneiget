@@ -130,7 +130,7 @@ class CiscoIOSXRDevice(CiscoDevice):
 
         for addrf in response:
             parsed_result = await loop.run_in_executor(
-                None, self.process_bgp_neighbours, self.platform, response[addrf], prog_args
+                None, self.process_bgp_neighbours, response[addrf], prog_args
             )
             if len(parsed_result) > 0:
                 result[addrf] = parsed_result
@@ -197,7 +197,7 @@ class CiscoIOSDevice(CiscoDevice):
 
         for addrf in response:
             parsed_result = await loop.run_in_executor(
-                None, self.process_bgp_neighbours, self.platform, response[addrf], prog_args
+                None, self.process_bgp_neighbours, response[addrf], prog_args
             )
             if len(parsed_result) > 0:
                 result[addrf] = parsed_result
