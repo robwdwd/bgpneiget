@@ -120,10 +120,10 @@ class CiscoIOSXRDevice(CiscoDevice):
             str: BGP summary show command
         """
         return [
-            "show bgp vrf all ipv4 unicast summary wide",
-            "show bgp instance all ipv4 unicast summary wide",
-            "show bgp vrf all ipv6 unicast summary wide",
-            "show bgp instance all ipv6 unicast summary wide",
+            "show bgp vrf all ipv4 unicast summary",
+            "show bgp instance all ipv4 unicast summary",
+            "show bgp vrf all ipv6 unicast summary",
+            "show bgp instance all ipv6 unicast summary",
         ]
 
 
