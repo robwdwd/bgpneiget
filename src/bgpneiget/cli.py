@@ -108,7 +108,7 @@ async def device_worker(name: str, queue: asyncio.Queue, prog_args: dict):
         try:
             result = await device.get_neighbours(prog_args)
 
-#            pp.pprint(result)
+        #            pp.pprint(result)
         except Exception as err:
             print(f"ERROR: {name}, Device failed: {err}", file=sys.stderr)
 
@@ -240,22 +240,6 @@ def cli(**cli_args):
     else:
         raise SystemExit("Required --seed or --device options are missing.")
 
-    # Load the textFSM template for parsing cisco BGP output
-    #
-    fsm = {}
-
-    try:
-        template_file = os.path.join(os.path.dirname(__file__), "textfsm/cisco_iosxe_show_bgp.textfsm")
-        with open(template_file) as template:
-            fsm["cisco_iosxe"] = TextFSM(template)
-
-        template_file = os.path.join(os.path.dirname(__file__), "textfsm/cisco_iosxr_show_bgp.textfsm")
-        with open(template_file) as template:
-            fsm["cisco_iosxr"] = TextFSM(template)
-
-    except OSError as err:
-        raise SystemExit(f"ERROR: Unable to open textfsm template: {err}") from err
-
     prog_args = {
         "username": cfg["username"],
         "password": cfg["password"],
@@ -267,7 +251,6 @@ def cli(**cli_args):
         "no_ipv4": cli_args["no_ipv4"],
         "no_ipv6": cli_args["no_ipv6"],
         "with_vrfs": cli_args["with_vrfs"],
-        "fsm": fsm,
     }
 
     asyncio.run(do_devices(devices, prog_args))

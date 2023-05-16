@@ -8,8 +8,6 @@
 
 from typing import Dict
 
-from scrapli.response import Response
-
 from bgpneiget.device.base import BaseDevice
 
 
@@ -19,7 +17,7 @@ async def get_output(
     username: str,
     password: str,
     timeout: int = 60,
-) -> Dict[str, Response]:
+) -> Dict[str, str]:
     """Get existing configuration from router.
 
     Args:
@@ -37,12 +35,9 @@ async def get_output(
 
     result = {}
 
-    print(driver)
-
     try:
         async with driver(**driver_options) as net_connect:
             for addrf in cli_cmds:
-                print(addrf)
                 response = await net_connect.send_command(command=cli_cmds[addrf], timeout_ops=timeout)
                 result[addrf] = response.result
     except Exception as err:

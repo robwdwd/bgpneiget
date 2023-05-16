@@ -6,6 +6,7 @@
 #
 import asyncio
 import ipaddress
+import os
 import pprint
 import sys
 from typing import Type
@@ -22,7 +23,7 @@ pp = pprint.PrettyPrinter(indent=2, width=120)
 class CiscoDevice(BaseDevice):
     """Base class for all Cisco Devices."""
 
-    async def process_bgp_neighbours(self, platform: str, output: str, prog_args: dict) -> dict:
+    async def process_bgp_neighbours(self, platform: str, output: str, prog_args: dict) -> list:
         """Process the BGP Neigbour output from devices through textFSM.
 
         Args:
@@ -33,7 +34,16 @@ class CiscoDevice(BaseDevice):
         Returns:
             dict: BGP Neighbours
         """
-        fsm: TextFSM = prog_args["fsm"][platform]
+
+        try:
+            template_file = os.path.join(os.path.dirname(__file__), "textfsm/cisco_iosxr_show_bgp.textfsm")
+            with open(template_file) as template:
+                fsm = TextFSM(template)
+
+        except OSError as err:
+            raise OSError(f"ERROR: Unable to open textfsm template: {err}") from err
+            
+
 
         pp.pprint(output)
 
