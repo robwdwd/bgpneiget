@@ -79,10 +79,13 @@ class CiscoDevice(BaseDevice):
                 continue
 
             is_up = False
-            pfxrcd = 0
+            pfxrcd = -1
+            state = 'Established'
             if neighbour["STATE_PFXRCD"].isdigit():
                 is_up = True
                 pfxrcd = neighbour["STATE_PFXRCD"]
+            else:
+                state = neighbour["STATE_PFXRCD"]
 
             routing_instance = "global"
             if 'vrf' in neighbour and neighbour["VRF"]:
@@ -94,6 +97,7 @@ class CiscoDevice(BaseDevice):
                 "ip_version": ipversion,
                 "is_up": is_up,
                 "pfxrcd": pfxrcd,
+                'state': state,
                 "up_down_time": neighbour["UP_DOWN"],
                 "routing_instance": routing_instance,
             }
