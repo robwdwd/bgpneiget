@@ -43,7 +43,7 @@ class CiscoDevice(BaseDevice):
 
         return fsm.ParseTextToDicts(output)
 
-    def process_bgp_neighbours(self, result: list, prog_args: dict) -> dict:
+    async def process_bgp_neighbours(self, result: list, prog_args: dict) -> dict:
         """Process the BGP Neigbour output from devices through textFSM.
 
         Args:
@@ -80,7 +80,7 @@ class CiscoDevice(BaseDevice):
 
             is_up = False
             pfxrcd = -1
-            state = 'Established'
+            state = "Established"
             if neighbour["STATE_PFXRCD"].isdigit():
                 is_up = True
                 pfxrcd = neighbour["STATE_PFXRCD"]
@@ -88,7 +88,7 @@ class CiscoDevice(BaseDevice):
                 state = neighbour["STATE_PFXRCD"]
 
             routing_instance = "global"
-            if 'VRF' in neighbour and neighbour["VRF"]:
+            if "VRF" in neighbour and neighbour["VRF"]:
                 routing_instance = neighbour["VRF"]
 
             results[str(addr)] = {
@@ -97,7 +97,7 @@ class CiscoDevice(BaseDevice):
                 "ip_version": ipversion,
                 "is_up": is_up,
                 "pfxrcd": pfxrcd,
-                'state': state,
+                "state": state,
                 "up_down_time": neighbour["UP_DOWN"],
                 "routing_instance": routing_instance,
             }

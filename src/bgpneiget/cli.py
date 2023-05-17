@@ -109,10 +109,10 @@ async def device_worker(name: str, queue: asyncio.Queue, prog_args: dict):
             response = await device.get_neighbours(prog_args)
             pp.pprint(response)
             for addrf in response:
-                result[addrf] = device.process_bgp_neighbours(response[addrf], prog_args)
-            
+                result[addrf] = await device.process_bgp_neighbours(response[addrf], prog_args)
+
             pp.pprint(result)
-            
+
         except Exception as err:
             print(f"ERROR: {name}, Device failed: {err}", file=sys.stderr)
 
@@ -206,7 +206,10 @@ def cli(**cli_args):
     Raises:
         SystemExit: Error in command line options
     """
-    cfg = json.load(cli_args["config"])
+    try:
+        cfg = json.load(cli_args["config"])
+    except JSONDecodeError as err:
+        raise SystemExit(f"Unable to parse configuration file: {err}") from err
 
     if cli_args["asignore"] and cli_args["asexcept"]:
         raise SystemExit(

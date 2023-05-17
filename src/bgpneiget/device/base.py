@@ -98,7 +98,7 @@ class BaseDevice(ABC):
         """
 
     @abstractmethod
-    def process_bgp_neighbours(self, result: list, prog_args: dict) -> list:
+    async def process_bgp_neighbours(self, result: list, prog_args: dict) -> list:
         """Process BGP neigbour output.
 
         Args:

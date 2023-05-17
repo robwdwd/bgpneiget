@@ -4,7 +4,9 @@
 # "BSD 2-Clause License". Please see the LICENSE file that should
 # have been included as part of this distribution.
 #
+import json
 import pprint
+from json import JSONDecodeError
 from typing import Type
 
 from scrapli.driver.core import AsyncJunosDriver
@@ -34,7 +36,7 @@ class JunOsDevice(BaseDevice):
         """
         return "show bgp sum | display json"
 
-    def process_bgp_neighbours(self, result: list, prog_args: dict) -> dict:
+    async def process_bgp_neighbours(self, result: list, prog_args: dict) -> dict:
         """Process the BGP Neigbour output from devices through textFSM.
 
         Args:
@@ -63,7 +65,9 @@ class JunOsDevice(BaseDevice):
         response = await get_output(self, commands, prog_args["username"], prog_args["password"])
 
         pp.pprint(response)
+        try:
+            result = json.loads(response["all"])
+        except JSONDecodeError as err:
+            raise err
 
-        result = {}
-        
         return result
