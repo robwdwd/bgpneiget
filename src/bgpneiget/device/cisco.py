@@ -28,6 +28,7 @@ class CiscoDevice(BaseDevice):
 
         Args:
             output (str): Output from network device
+
             filename (str): Template filename
 
         Returns:
@@ -43,16 +44,24 @@ class CiscoDevice(BaseDevice):
 
         return fsm.ParseTextToDicts(output)
 
-    async def process_bgp_neighbours(self, result: list, prog_args: dict) -> list:
+    async def process_bgp_neighbours(self, result: list, table: str, prog_args: dict) -> list:
         """Process the BGP Neigbour output from devices through textFSM.
 
         Args:
             result (list): Parsed output from network device
+            table (str): Forwarding table (ipv4, ipv6, vpnv4 or vpnv6)
             prog_args (dict): Program arguments, asignore etc.
 
         Returns:
-            dict: BGP Neighbours
+            list: BGP Neighbours
         """
+
+        #   { 'BGP_INSTANCE': 'default',
+        #     'BGP_NEIGH': '100.65.5.175',
+        #     'NEIGH_AS': '65505',
+        #     'STATE_PFXRCD': '3',
+        #     'VRF': 'VRF-IPC103293-1-00005'},
+
         results = []
         for neighbour in result:
             addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
@@ -78,26 +87,25 @@ class CiscoDevice(BaseDevice):
             else:
                 state = neighbour["STATE_PFXRCD"]
 
-            routing_instance = "global"
+            routing_instance = "default"
             if "VRF" in neighbour and neighbour["VRF"]:
                 routing_instance = neighbour["VRF"]
 
-            address_family = "ipv4"
-            if "ADDR_FAMILY" in neighbour and neighbour["ADDR_FAMILY"]:
-                address_family = neighbour["ADDR_FAMILY"]
+            protocol_instance = "default"
+            if "BGP_INSTANCE" in neighbour and neighbour["BGP_INSTANCE"]:
+                protocol_instance = neighbour["BGP_INSTANCE"]
 
             results.append(
                 {
                     "remote_ip": str(addr),
                     "remote_asn": as_number,
-                    "address_family": address_family,
-                    "local_asn": int(neighbour["LOCAL_AS"]),
+                    "address_family": table,
                     "ip_version": ipversion,
                     "is_up": is_up,
                     "pfxrcd": pfxrcd,
                     "state": state,
-                    "up_down_time": neighbour["UP_DOWN"],
                     "routing_instance": routing_instance,
+                    "protocol_instance": protocol_instance,
                 }
             )
 
@@ -138,18 +146,20 @@ class CiscoIOSXRDevice(CiscoDevice):
 
         loop = asyncio.get_running_loop()
 
+        result = []
+
         for resp in response:
-          pp.pprint(resp.result)
-          pp.pprint(resp.channel_input)
+            pp.pprint(resp.result)
+            pp.pprint(resp.channel_input)
 
-          table = reverse_commands[resp.channel_input]
-          pp.pprint(table)
-          parsed_result = await loop.run_in_executor(
-              None, self.parse_bgp_neighbours, resp.result, "cisco_iosxr_show_bgp.textfsm"
-          )
-          pp.pprint(parsed_result)
+            table = reverse_commands[resp.channel_input]
+            pp.pprint(table)
+            parsed_result = await loop.run_in_executor(
+                None, self.parse_bgp_neighbours, resp.result, "cisco_iosxr_show_bgp.textfsm"
+            )
+            result = result + await self.process_bgp_neighbours(parsed_result, table, prog_args)
 
-        return parsed_result
+        return result
 
     def get_bgp_cmd_global(self, table: str) -> str:
         """Get the BGP summary show command for this device.

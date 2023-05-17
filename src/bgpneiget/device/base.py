@@ -79,7 +79,7 @@ class BaseDevice(ABC):
         """
 
     @abstractmethod
-    def get_bgp_cmd_global(self) -> str:
+    def get_bgp_cmd_global(self, table: str) -> str:
         """Get the BGP summary show command for this device.
 
         Returns:
@@ -98,7 +98,7 @@ class BaseDevice(ABC):
         """
 
     @abstractmethod
-    async def process_bgp_neighbours(self, result: list, prog_args: dict) -> list:
+    async def process_bgp_neighbours(self, result: list, table: str, prog_args: dict) -> list:
         """Process BGP neigbour output.
 
         Args:

@@ -105,12 +105,7 @@ async def device_worker(name: str, queue: asyncio.Queue, prog_args: dict):
         device: BaseDevice = await queue.get()
 
         try:
-
-            response = await device.get_neighbours(prog_args)
-            pp.pprint(response)
-
-            result = await device.process_bgp_neighbours(response, prog_args)
-
+            result = await device.get_neighbours(prog_args)
             pp.pprint(result)
 
         except Exception as err:
@@ -195,7 +190,7 @@ async def do_devices(devices: dict, prog_args: dict):
     type=str,
     metavar="TABLE",
     multiple=True,
-    default=["ipv4", 'ipv6'],
+    default=["ipv4", "ipv6"],
     help="Get BGP neighbours from these tables.",
 )
 @click.option(
