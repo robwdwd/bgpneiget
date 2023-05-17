@@ -9,6 +9,7 @@
 from typing import Dict
 
 from bgpneiget.device.base import BaseDevice
+from bgpneiget.device.juniper import JunOsDevice
 
 
 async def get_output(
@@ -37,6 +38,9 @@ async def get_output(
 
     try:
         async with driver(**driver_options) as net_connect:
+            if isinstance(driver, JunOsDevice):
+                net_connect.comms_prompt_pattern = '^Iinuu0to8iewuiz>\s*$'
+                response = await net_connect.send_command(command='set cli prompt Iinuu0to8iewuiz>', timeout_ops=timeout)
             for addrf in cli_cmds:
                 response = await net_connect.send_command(command=cli_cmds[addrf], timeout_ops=timeout)
                 result[addrf] = response.result
