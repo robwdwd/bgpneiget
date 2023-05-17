@@ -182,17 +182,21 @@ async def do_devices(devices: dict, prog_args: dict):
     is_flag=True,
     help="Lists all routing instances / vrf found on the device. Will not process the bgp neighbours.",
 )
-@click.option("--vpnv4", is_flag=True, help="Include Layer 3 VPN IPv4 neighbours.")
-@click.option("--vpnv6", is_flag=True, help="Include Layer 3 VPN IPv6 neighbours.")
 @click.option("--with-vrfs", is_flag=True, help="Include neighbours in vrfs/routing instance.")
-@click.option("--no-ipv4", is_flag=True, help="Exclude IPv4 neighbours.")
-@click.option("--no-ipv6", is_flag=True, help="Exclude IPv6 neighbours.")
 @click.option(
     "--asexcept",
     type=int,
     metavar="ASNUM",
     multiple=True,
     help="Filter out all AS number except this one. Can be used multiple times.",
+)
+@click.option(
+    "--tables",
+    type=str,
+    metavar="TABLE",
+    multiple=True,
+    default=["ipv4", 'ipv6']
+    help="Get BGP neighbours from these tables.",
 )
 @click.option(
     "--asignore", type=int, metavar="ASNUM", multiple=True, help="AS number to filter out. Can be used multiple times."
@@ -251,10 +255,7 @@ def cli(**cli_args):
         "except_as": cli_args["asexcept"],
         "verbose": cli_args["verbose"],
         "ignore_as": cli_args["asignore"],
-        "vpnv4": cli_args["vpnv4"],
-        "vpnv6": cli_args["vpnv6"],
-        "no_ipv4": cli_args["no_ipv4"],
-        "no_ipv6": cli_args["no_ipv6"],
+        "tables": cli_args["tables"],
         "with_vrfs": cli_args["with_vrfs"],
     }
 

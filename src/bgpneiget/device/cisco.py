@@ -125,10 +125,10 @@ class CiscoIOSXRDevice(CiscoDevice):
             list: Found BGP neighbours
         """
 
-        commands = []
+        commands = {}
 
-        if not prog_args["no-ipv4"]:
-          commands.append(self.get_bgp_cmd_global('ipv4')
+        for table in prog_args["table"]:
+            commands[table] = self.get_bgp_cmd_global(table)
 
         pp.pprint(commands)
         response = await get_output(self, commands, prog_args["username"], prog_args["password"])
@@ -148,8 +148,8 @@ class CiscoIOSXRDevice(CiscoDevice):
         Returns:
             str: BGP summary show command
         """
-        return   "show bgp instance all table {table} unicast",
-        
+        return ("show bgp instance all table {table} unicast",)
+
 
 class CiscoIOSDevice(CiscoDevice):
     """Cisco IOS and IOS-XE devices."""

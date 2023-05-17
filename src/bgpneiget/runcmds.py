@@ -6,18 +6,20 @@
 #
 """Device command runner."""
 
-from typing import Dict
+from typing import Dict, Union
+
+from scrapli.response import MultiResponse
 
 from bgpneiget.device.base import BaseDevice
 
 
 async def get_output(
     device: BaseDevice,
-    cli_cmd: str,
+    cli_cmds: Dict,
     username: str,
     password: str,
     timeout: int = 60,
-) -> str:
+) -> MultiResponse:
     """Get existing configuration from router.
 
     Args:
@@ -38,10 +40,10 @@ async def get_output(
             if device.platform == 'juniper_junos':
                 net_connect.comms_prompt_pattern = '^Iinuu0to8iewuiz>\s*$'
                 response = await net_connect.send_command(command='set cli prompt Iinuu0to8iewuiz>', timeout_ops=timeout)
-            
-            response = await net_connect.send_command(command=cli_cmd, timeout_ops=timeout)
+
+            response = await net_connect.send_commands(commands=cli_cmds.values(), timeout_ops=timeout)
             
     except Exception as err:
         raise err
 
-    return response.result
+    return response
