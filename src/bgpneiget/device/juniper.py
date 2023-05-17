@@ -4,11 +4,15 @@
 # "BSD 2-Clause License". Please see the LICENSE file that should
 # have been included as part of this distribution.
 #
+import pprint
 from typing import Type
 
 from scrapli.driver.core import AsyncJunosDriver
 
 from bgpneiget.device.base import BaseDevice
+from bgpneiget.runcmds import get_output
+
+pp = pprint.PrettyPrinter(indent=2, width=120)
 
 
 class JunOsDevice(BaseDevice):
@@ -29,3 +33,37 @@ class JunOsDevice(BaseDevice):
             str: BGP summary show command
         """
         return "show bgp sum | display json"
+
+    def process_bgp_neighbours(self, result: list, prog_args: dict) -> dict:
+        """Process the BGP Neigbour output from devices through textFSM.
+
+        Args:
+            result (list): Parsed output from network device
+            prog_args (dict): Program arguments, asignore etc.
+
+        Returns:
+            dict: BGP Neighbours
+        """
+        pp.pprint(result)
+
+    async def get_neighbours(self, prog_args: dict) -> dict:
+        """Get BGP neighbours from device.
+
+        Args:
+            prog_args (dict): Program arguments
+
+        Returns:
+            dict: Found BGP neighbours
+        """
+        commands = {}
+
+        commands["all"] = self.get_bgp_cmd_global()
+
+        pp.pprint(commands)
+        response = await get_output(self, commands, prog_args["username"], prog_args["password"])
+
+        pp.pprint(response)
+
+        result = {}
+        
+        return result
