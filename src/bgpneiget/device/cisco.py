@@ -88,7 +88,7 @@ class CiscoDevice(BaseDevice):
                 state = neighbour["STATE_PFXRCD"]
 
             routing_instance = "global"
-            if 'vrf' in neighbour and neighbour["VRF"]:
+            if 'VRF' in neighbour and neighbour["VRF"]:
                 routing_instance = neighbour["VRF"]
 
             results[str(addr)] = {
