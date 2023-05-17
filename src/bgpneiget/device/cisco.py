@@ -53,15 +53,6 @@ class CiscoDevice(BaseDevice):
         Returns:
             dict: BGP Neighbours
         """
-
-        # { 'BGP_NEIGH': '80.169.21.153',
-        #     'LOCAL_AS': '8220',
-        #     'NEIGH_AS': '15404',
-        #     'ROUTER_ID': '212.74.94.143',
-        #     'STATE_PFXRCD': '1',
-        #     'UP_DOWN': '2w5d',
-        #     'VRF': 'default'},
-
         results = []
         for neighbour in result:
             addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
@@ -134,10 +125,13 @@ class CiscoIOSXRDevice(CiscoDevice):
             list: Found BGP neighbours
         """
 
-        command = self.get_bgp_cmd_global()
+        commands = []
 
-        pp.pprint(command)
-        response = await get_output(self, command, prog_args["username"], prog_args["password"])
+        if not prog_args["no-ipv4"]:
+          commands.append(self.get_bgp_cmd_global('ipv4')
+
+        pp.pprint(commands)
+        response = await get_output(self, commands, prog_args["username"], prog_args["password"])
 
         loop = asyncio.get_running_loop()
 
@@ -148,22 +142,14 @@ class CiscoIOSXRDevice(CiscoDevice):
 
         return parsed_result
 
-    def get_bgp_cmd_global(self) -> str:
+    def get_bgp_cmd_global(self, table: str) -> str:
         """Get the BGP summary show command for this device.
 
         Returns:
             str: BGP summary show command
         """
-        return "show bgp instance all all unicast summary"
-
-    def get_bgp_cmd_vrfs(self) -> str:
-        """Get the BGP summary show command for this device.
-
-        Returns:
-            str: BGP summary show command
-        """
-        return "show bgp vrf all summary"
-
+        return   "show bgp instance all table {table} unicast",
+        
 
 class CiscoIOSDevice(CiscoDevice):
     """Cisco IOS and IOS-XE devices."""
