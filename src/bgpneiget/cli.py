@@ -195,7 +195,7 @@ async def do_devices(devices: dict, prog_args: dict):
     type=str,
     metavar="TABLE",
     multiple=True,
-    default=["ipv4", 'ipv6']
+    default=["ipv4", 'ipv6'],
     help="Get BGP neighbours from these tables.",
 )
 @click.option(

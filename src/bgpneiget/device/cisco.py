@@ -126,19 +126,28 @@ class CiscoIOSXRDevice(CiscoDevice):
         """
 
         commands = {}
+        reverse_commands = {}
 
-        for table in prog_args["table"]:
-            commands[table] = self.get_bgp_cmd_global(table)
+        for table in prog_args["tables"]:
+            cmd = self.get_bgp_cmd_global(table)
+            commands[table] = cmd
+            reverse_commands[cmd] = table
 
         pp.pprint(commands)
         response = await get_output(self, commands, prog_args["username"], prog_args["password"])
 
         loop = asyncio.get_running_loop()
 
-        parsed_result = await loop.run_in_executor(
-            None, self.parse_bgp_neighbours, response, "cisco_iosxr_show_bgp.textfsm"
-        )
-        pp.pprint(parsed_result)
+        for resp in response:
+          pp.pprint(resp.result)
+          pp.pprint(resp.channel_input)
+
+          table = reverse_commands[resp.channel_input]
+          pp.pprint(table)
+          parsed_result = await loop.run_in_executor(
+              None, self.parse_bgp_neighbours, resp.result, "cisco_iosxr_show_bgp.textfsm"
+          )
+          pp.pprint(parsed_result)
 
         return parsed_result
 
@@ -148,7 +157,7 @@ class CiscoIOSXRDevice(CiscoDevice):
         Returns:
             str: BGP summary show command
         """
-        return ("show bgp instance all table {table} unicast",)
+        return f"show bgp instance all table {table} unicast"
 
 
 class CiscoIOSDevice(CiscoDevice):

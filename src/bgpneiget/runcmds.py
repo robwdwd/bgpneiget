@@ -41,7 +41,7 @@ async def get_output(
                 net_connect.comms_prompt_pattern = '^Iinuu0to8iewuiz>\s*$'
                 response = await net_connect.send_command(command='set cli prompt Iinuu0to8iewuiz>', timeout_ops=timeout)
 
-            response = await net_connect.send_commands(commands=cli_cmds.values(), timeout_ops=timeout)
+            response = await net_connect.send_commands(commands=list(cli_cmds.values()), timeout_ops=timeout)
             
     except Exception as err:
         raise err
