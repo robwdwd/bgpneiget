@@ -5,7 +5,9 @@
 # have been included as part of this distribution.
 #
 import json
+import xmltodict
 import pprint
+import ipaddress
 from json import JSONDecodeError
 from typing import Type
 
@@ -34,7 +36,7 @@ class JunOsDevice(BaseDevice):
         Returns:
             str: BGP summary show command
         """
-        return "show bgp sum | display json"
+        return "show bgp neighbor | display xml"
 
     async def process_bgp_neighbours(self, result: list, prog_args: dict) -> dict:
         """Process the BGP Neigbour output from devices through textFSM.
@@ -46,7 +48,31 @@ class JunOsDevice(BaseDevice):
         Returns:
             dict: BGP Neighbours
         """
-        pp.pprint(result)
+        try:
+            data = xmltodict.parse(output)
+        except Exception as err:
+            raise err
+
+        pp.pprint(data)
+
+        if 'rpc-reply' not in data:
+          return []
+
+        if 'bgp-information' not in data['rpc-reply']:
+          return []
+
+        if 'bgp-peer' not in data['rpc-reply']['bgp-information']:
+          return []
+
+        for bgp_peer in data['rpc-reply']['bgp-information']['bgp-peer']:
+          remote_ip = bgp_peer['peer-address']
+          if '+' in remote_ip:
+            remote_ip = remote_ip[ 0 : remote_ip.find("+")]
+          remote_ip = ipaddress.ip_address(remote_ip)
+
+          results[str(remote_ip)] = {}
+
+        return results
 
     async def get_neighbours(self, prog_args: dict) -> dict:
         """Get BGP neighbours from device.
@@ -64,10 +90,10 @@ class JunOsDevice(BaseDevice):
         pp.pprint(commands)
         response = await get_output(self, commands, prog_args["username"], prog_args["password"])
 
+        response['all'] = response['all'][:response['all'].rfind('\n')]
+
         pp.pprint(response)
-        try:
-            result = json.loads(response["all"])
-        except JSONDecodeError as err:
-            raise err
+
+        result = self.parse_bgp_neighbours(response['all'])
 
         return result
