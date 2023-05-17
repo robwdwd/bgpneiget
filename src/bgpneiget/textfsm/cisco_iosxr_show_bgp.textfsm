@@ -1,5 +1,5 @@
 Value Filldown,Required BGP_INSTANCE (.+?)
-Value VRF (.+?)
+Value VRF (\S+)
 Value BGP_NEIGH (\d+?\.\d+?\.\d+?\.\d+?|[0-9A-Fa-f\:]+)
 Value NEIGH_AS (\d+)
 Value STATE_PFXRCD (\S+?\s+\S+?|\S+?)
@@ -10,5 +10,7 @@ Start
   ^${BGP_NEIGH}\s+${VRF}\s+\d+\s+${NEIGH_AS}(\s+\d+?){3}\s+${STATE_PFXRCD}\s*$$ -> Record
   ^${BGP_NEIGH}$$
   ^\s+${VRF}\s+\d+\s+${NEIGH_AS}(\s+\d+?){3}\s+${STATE_PFXRCD}\s*$$ -> Record
+  ^${BGP_NEIGH}\s+${VRF}$$
+  ^\s+\d+\s+${NEIGH_AS}(\s+\d+?){3}\s+${STATE_PFXRCD}\s*$$ -> Record
 
 EOF

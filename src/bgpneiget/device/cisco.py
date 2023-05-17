@@ -61,9 +61,12 @@ class CiscoDevice(BaseDevice):
         #     'NEIGH_AS': '65505',
         #     'STATE_PFXRCD': '3',
         #     'VRF': 'VRF-IPC103293-1-00005'},
+  
+        pp.pprint(table)
 
         results = []
         for neighbour in result:
+            pp.pprint(neighbour)
             addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
 
             if prog_args["verbose"] >= 1:
@@ -149,11 +152,8 @@ class CiscoIOSXRDevice(CiscoDevice):
         result = []
 
         for resp in response:
-            pp.pprint(resp.result)
-            pp.pprint(resp.channel_input)
 
             table = reverse_commands[resp.channel_input]
-            pp.pprint(table)
             parsed_result = await loop.run_in_executor(
                 None, self.parse_bgp_neighbours, resp.result, "cisco_iosxr_show_bgp.textfsm"
             )
