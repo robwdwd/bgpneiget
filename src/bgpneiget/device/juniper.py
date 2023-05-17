@@ -4,13 +4,13 @@
 # "BSD 2-Clause License". Please see the LICENSE file that should
 # have been included as part of this distribution.
 #
-import json
-import xmltodict
-import pprint
 import ipaddress
+import json
+import pprint
 from json import JSONDecodeError
 from typing import Type
 
+import xmltodict
 from scrapli.driver.core import AsyncJunosDriver
 
 from bgpneiget.device.base import BaseDevice
@@ -38,7 +38,7 @@ class JunOsDevice(BaseDevice):
         """
         return "show bgp neighbor | display xml"
 
-    async def process_bgp_neighbours(self, result: list, prog_args: dict) -> dict:
+    async def process_bgp_neighbours(self, result: list, prog_args: dict) -> list:
         """Process the BGP Neigbour output from devices through textFSM.
 
         Args:
@@ -49,28 +49,28 @@ class JunOsDevice(BaseDevice):
             dict: BGP Neighbours
         """
         try:
-            data = xmltodict.parse(output)
+            data = xmltodict.parse(result)
         except Exception as err:
             raise err
 
         pp.pprint(data)
 
-        if 'rpc-reply' not in data:
-          return []
+        if "rpc-reply" not in data:
+            return []
 
-        if 'bgp-information' not in data['rpc-reply']:
-          return []
+        if "bgp-information" not in data["rpc-reply"]:
+            return []
 
-        if 'bgp-peer' not in data['rpc-reply']['bgp-information']:
-          return []
+        if "bgp-peer" not in data["rpc-reply"]["bgp-information"]:
+            return []
 
-        for bgp_peer in data['rpc-reply']['bgp-information']['bgp-peer']:
-          remote_ip = bgp_peer['peer-address']
-          if '+' in remote_ip:
-            remote_ip = remote_ip[ 0 : remote_ip.find("+")]
-          remote_ip = ipaddress.ip_address(remote_ip)
+        for bgp_peer in data["rpc-reply"]["bgp-information"]["bgp-peer"]:
+            remote_ip = bgp_peer["peer-address"]
+            if "+" in remote_ip:
+                remote_ip = remote_ip[0 : remote_ip.find("+")]
+            remote_ip = ipaddress.ip_address(remote_ip)
 
-          results[str(remote_ip)] = {}
+            results[str(remote_ip)] = {}
 
         return results
 
@@ -90,10 +90,10 @@ class JunOsDevice(BaseDevice):
         pp.pprint(commands)
         response = await get_output(self, commands, prog_args["username"], prog_args["password"])
 
-        response['all'] = response['all'][:response['all'].rfind('\n')]
+        response["all"] = response["all"][: response["all"].rfind("\n")]
 
         pp.pprint(response)
 
-        result = self.parse_bgp_neighbours(response['all'])
+        result = self.parse_bgp_neighbours(response["all"])
 
         return result

@@ -79,7 +79,7 @@ class BaseDevice(ABC):
         """
 
     @abstractmethod
-    def get_bgp_cmd_global(self, address_family: str = "ipv4") -> str:
+    def get_bgp_cmd_global(self) -> str:
         """Get the BGP summary show command for this device.
 
         Returns:
@@ -87,14 +87,14 @@ class BaseDevice(ABC):
         """
 
     @abstractmethod
-    async def get_neighbours(self, prog_args: dict) -> dict:
+    async def get_neighbours(self, prog_args: dict) -> list:
         """Get BGP neighbours from device.
 
         Args:
             prog_args (dict): Program arguments
 
         Returns:
-            dict: Found BGP neighbours
+            list: Found BGP neighbours
         """
 
     @abstractmethod

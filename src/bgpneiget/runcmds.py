@@ -13,11 +13,11 @@ from bgpneiget.device.base import BaseDevice
 
 async def get_output(
     device: BaseDevice,
-    cli_cmds: Dict[str, str],
+    cli_cmd: str,
     username: str,
     password: str,
     timeout: int = 60,
-) -> Dict[str, str]:
+) -> str:
     """Get existing configuration from router.
 
     Args:
@@ -33,17 +33,15 @@ async def get_output(
     driver = device.get_driver()
     driver_options = device.get_driver_options(username, password)
 
-    result = {}
-
     try:
         async with driver(**driver_options) as net_connect:
             if device.platform == 'juniper_junos':
                 net_connect.comms_prompt_pattern = '^Iinuu0to8iewuiz>\s*$'
                 response = await net_connect.send_command(command='set cli prompt Iinuu0to8iewuiz>', timeout_ops=timeout)
-            for addrf in cli_cmds:
-                response = await net_connect.send_command(command=cli_cmds[addrf], timeout_ops=timeout)
-                result[addrf] = response.result
+            
+            response = await net_connect.send_command(command=cli_cmd, timeout_ops=timeout)
+            
     except Exception as err:
         raise err
 
-    return result
+    return response.result
