@@ -38,7 +38,7 @@ class JunOsDevice(BaseDevice):
         """
         return "show bgp neighbor | display xml"
 
-    async def process_bgp_neighbours(self, result: list, prog_args: dict) -> list:
+    async def process_bgp_neighbours(self, result: list, table: str, prog_args: dict) -> list:
         """Process the BGP Neigbour output from devices through textFSM.
 
         Args:

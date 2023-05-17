@@ -23,6 +23,39 @@ pp = pprint.PrettyPrinter(indent=2, width=120)
 class CiscoDevice(BaseDevice):
     """Base class for all Cisco Devices."""
 
+    async def get_neighbours(self, prog_args: dict) -> list:
+        """Get BGP neighbours from device.
+
+        Args:
+            prog_args (dict): Program arguments
+
+        Returns:
+            list: Found BGP neighbours
+        """
+        commands = {}
+        reverse_commands = {}
+
+        for table in prog_args["table"]:
+            cmd = self.get_bgp_cmd_global(table)
+            commands[table] = cmd
+            reverse_commands[cmd] = table
+
+        pp.pprint(commands)
+        response = await get_output(self, commands, prog_args["username"], prog_args["password"])
+
+        loop = asyncio.get_running_loop()
+
+        result = []
+
+        template_file = f"{self.platform}_show_bgp.textfsm"
+
+        for resp in response:
+            table = reverse_commands[resp.channel_input]
+            parsed_result = await loop.run_in_executor(None, self.parse_bgp_neighbours, resp.result, template_file)
+            result = result + await self.process_bgp_neighbours(parsed_result, table, prog_args)
+
+        return result
+
     def parse_bgp_neighbours(self, output: str, filename: str) -> list:
         """Process the BGP Neigbour output from devices through textFSM.
 
@@ -61,7 +94,7 @@ class CiscoDevice(BaseDevice):
         #     'NEIGH_AS': '65505',
         #     'STATE_PFXRCD': '3',
         #     'VRF': 'VRF-IPC103293-1-00005'},
-  
+
         pp.pprint(table)
 
         results = []
@@ -126,41 +159,6 @@ class CiscoIOSXRDevice(CiscoDevice):
         """
         return AsyncIOSXRDriver
 
-    async def get_neighbours(self, prog_args: dict) -> list:
-        """Get BGP neighbours from device.
-
-        Args:
-            prog_args (dict): Program arguments
-
-        Returns:
-            list: Found BGP neighbours
-        """
-
-        commands = {}
-        reverse_commands = {}
-
-        for table in prog_args["tables"]:
-            cmd = self.get_bgp_cmd_global(table)
-            commands[table] = cmd
-            reverse_commands[cmd] = table
-
-        pp.pprint(commands)
-        response = await get_output(self, commands, prog_args["username"], prog_args["password"])
-
-        loop = asyncio.get_running_loop()
-
-        result = []
-
-        for resp in response:
-
-            table = reverse_commands[resp.channel_input]
-            parsed_result = await loop.run_in_executor(
-                None, self.parse_bgp_neighbours, resp.result, "cisco_iosxr_show_bgp.textfsm"
-            )
-            result = result + await self.process_bgp_neighbours(parsed_result, table, prog_args)
-
-        return result
-
     def get_bgp_cmd_global(self, table: str) -> str:
         """Get the BGP summary show command for this device.
 
@@ -181,37 +179,22 @@ class CiscoIOSDevice(CiscoDevice):
         """
         return AsyncIOSXEDriver
 
-    async def get_neighbours(self, prog_args: dict) -> list:
-        """Get BGP neighbours from device.
-
-        Args:
-            prog_args (dict): Program arguments
-
-        Returns:
-            list: Found BGP neighbours
-        """
-
-        command = self.get_bgp_cmd_global()
-
-        pp.pprint(command)
-        response = await get_output(self, command, prog_args["username"], prog_args["password"])
-
-        loop = asyncio.get_running_loop()
-
-        parsed_result = await loop.run_in_executor(
-            None, self.parse_bgp_neighbours, response, "cisco_iosxe_show_bgp.textfsm"
-        )
-        pp.pprint(parsed_result)
-
-        return parsed_result
-
-    def get_bgp_cmd_global(self) -> str:
+    def get_bgp_cmd_global(self, table: str) -> str:
         """Get the BGP summary show command for this device.
 
         Returns:
             str: BGP summary show command
         """
-        return "show ip bgp all summary"
+        if table == "ipv4":
+            return "show ip bgp summary"
+        elif table == "ipv6":
+            return "show bgp ipv6 unicast summary"
+        elif table == "vpnv4":
+            return "show bgp vpnv4 unicast all summary"
+        elif table == "vpnv6":
+            return "show bgp vpnv6 unicast all summary"
+        else:
+            raise ValueError("Unknown routing table.")
 
 
 class CiscoNXOSDevice(CiscoDevice):
@@ -225,18 +208,10 @@ class CiscoNXOSDevice(CiscoDevice):
         """
         return AsyncNXOSDriver
 
-    def get_bgp_cmd_global(self, address_family: str = "ipv4") -> str:
+    def get_bgp_cmd_global(self, table: str) -> str:
         """Get the BGP summary show command for this device.
 
         Returns:
             str: BGP summary show command
         """
         return "show ip bgp summary"
-
-    def get_bgp_cmd_vrfs(self, address_family: str = "ipv4") -> str:
-        """Get the BGP summary show command for this device.
-
-        Returns:
-            str: BGP summary show command
-        """
-        return "show bgp ipv6 unicast summary"
