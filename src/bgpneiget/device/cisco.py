@@ -53,15 +53,24 @@ class CiscoDevice(BaseDevice):
         Returns:
             dict: BGP Neighbours
         """
+
+        # { 'BGP_NEIGH': '80.169.21.153',
+        #     'LOCAL_AS': '8220',
+        #     'NEIGH_AS': '15404',
+        #     'ROUTER_ID': '212.74.94.143',
+        #     'STATE_PFXRCD': '1',
+        #     'UP_DOWN': '2w5d',
+        #     'VRF': 'default'},
+
         results = {}
         for neighbour in result:
-            addr = ipaddress.ip_address(neighbour[3])
+            addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
 
             if prog_args["verbose"] >= 1:
                 print(f"DEBUG: Found neighbour {neighbour}", file=sys.stderr)
 
             ipversion = addr.version
-            as_number = int(neighbour[4])
+            as_number = int(neighbour["NEIGH_AS"])
 
             if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
                 continue
@@ -70,18 +79,22 @@ class CiscoDevice(BaseDevice):
                 continue
 
             is_up = False
-            if neighbour[6].isdigit():
+            pfxrcd = 0
+            if neighbour["STATE_PFXRCD"].isdigit():
                 is_up = True
+                pfxrcd = neighbour["STATE_PFXRCD"]
 
             routing_instance = "global"
-            if neighbour[2]:
-                routing_instance = neighbour[2]
+            if 'vrf' in neighbour and neighbour["VRF"]:
+                routing_instance = neighbour["VRF"]
 
             results[str(addr)] = {
                 "remote_asn": as_number,
-                "local_asn": int(neighbour[1]),
+                "local_asn": int(neighbour["LOCAL_AS"]),
                 "ip_version": ipversion,
                 "is_up": is_up,
+                "pfxrcd": pfxrcd,
+                "up_down_time": neighbour["UP_DOWN"],
                 "routing_instance": routing_instance,
             }
 
