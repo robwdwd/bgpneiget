@@ -27,9 +27,8 @@ class CiscoDevice(BaseDevice):
         """Process the BGP Neigbour output from devices through textFSM.
 
         Args:
-            platform (str): Device platform
             output (str): Output from network device
-            prog_args (dict): Program arguments, asignore etc.
+            filename (str): Template filename
 
         Returns:
             dict: BGP Neighbours
@@ -42,12 +41,7 @@ class CiscoDevice(BaseDevice):
         except OSError as err:
             raise OSError(f"ERROR: Unable to open textfsm template: {err}") from err
 
-        pp.pprint(output)
-
-        result = fsm.ParseText(output)
-
-        pp.pprint(result)
-        return result
+        return fsm.ParseTextToDicts(output)
 
     def process_bgp_neighbours(self, result: list, prog_args: dict) -> dict:
         """Process the BGP Neigbour output from devices through textFSM.
@@ -143,6 +137,7 @@ class CiscoIOSXRDevice(CiscoDevice):
             parsed_result = await loop.run_in_executor(
                 None, self.parse_bgp_neighbours, response[addrf], "cisco_iosxr_show_bgp.textfsm"
             )
+            pp.pprint(parsed_result)
             if len(parsed_result) > 0:
                 result[addrf] = self.process_bgp_neighbours(parsed_result, prog_args)
 
@@ -210,6 +205,7 @@ class CiscoIOSDevice(CiscoDevice):
             parsed_result = await loop.run_in_executor(
                 None, self.parse_bgp_neighbours, response[addrf], "cisco_iosxe_show_bgp.textfsm"
             )
+            pp.pprint(parsed_result)
             if len(parsed_result) > 0:
                 result[addrf] = self.process_bgp_neighbours(parsed_result, prog_args)
 

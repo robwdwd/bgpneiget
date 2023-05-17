@@ -22,10 +22,10 @@ class JunOsDevice(BaseDevice):
         """
         return AsyncJunosDriver
 
-    def get_bgp_cmd(self) -> list:
+    def get_bgp_cmd_global(self, address_family: str = "ipv4") -> str:
         """Get the BGP summary show command for this device.
 
         Returns:
             str: BGP summary show command
         """
-        return ["show bgp sum"]
+        return "show bgp sum | display json"
