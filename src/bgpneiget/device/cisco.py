@@ -156,7 +156,7 @@ class CiscoIOSXRDevice(CiscoDevice):
             )
             pp.pprint(parsed_result)
             if len(parsed_result) > 0:
-                result[addrf] = self.process_bgp_neighbours(parsed_result, prog_args)
+                result[addrf] = parsed_result
 
         return result
 
@@ -224,7 +224,7 @@ class CiscoIOSDevice(CiscoDevice):
             )
             pp.pprint(parsed_result)
             if len(parsed_result) > 0:
-                result[addrf] = self.process_bgp_neighbours(parsed_result, prog_args)
+                result[addrf] = parsed_result
 
         return result
 

@@ -105,8 +105,14 @@ async def device_worker(name: str, queue: asyncio.Queue, prog_args: dict):
         device: BaseDevice = await queue.get()
 
         try:
-            result = await device.get_neighbours(prog_args)
+            result = {}
+            response = await device.get_neighbours(prog_args)
+            pp.pprint(response)
+            for addrf in response:
+                result[addrf] = device.process_bgp_neighbours(response[addrf], prog_args)
+            
             pp.pprint(result)
+            
         except Exception as err:
             print(f"ERROR: {name}, Device failed: {err}", file=sys.stderr)
 
