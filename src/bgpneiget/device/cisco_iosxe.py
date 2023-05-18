@@ -48,6 +48,82 @@ class CiscoIOSDevice(BaseDevice):
         else:
             raise ValueError("Unknown routing table.")
 
+    async def process_bgp_neighbours_vpn(self, result: list, table: str, prog_args: dict) -> list:
+        """Process the BGP Neigbour output from devices through textFSM.
+
+        Args:
+            result (list): Parsed output from network device
+            table (str): Forwarding table (ipv4, ipv6, vpnv4 or vpnv6)
+            prog_args (dict): Program arguments, asignore etc.
+
+        Returns:
+            list: BGP Neighbours
+        """
+
+        #   { 'ADDRESS_FAMILY': 'IPv4 Unicast',
+        #     'BGP_NEIGH': '212.74.94.84',
+        #     'NEIGH_AS': '8220',
+        #     'PREFIXES': '32',
+        #     'STATE': 'Established',
+        #     'VRF': 'remote'},
+
+        pp.pprint(table)
+
+        results = []
+        for neighbour in result:
+            pp.pprint(neighbour)
+            addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
+
+            if prog_args["verbose"] >= 1:
+                print(f"DEBUG: Found neighbour {neighbour}", file=sys.stderr)
+
+            ipversion = addr.version
+            as_number = int(neighbour["NEIGH_AS"])
+
+            if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
+                continue
+
+            if prog_args["ignore_as"] and as_number in prog_args["ignore_as"]:
+                continue
+
+            if neighbour["ADDRESS_FAMILY"] in ("IPv4 Unicast", "IPv6 Unicast"):
+                continue
+
+            if neighbour["ADDRESS_FAMILY"] == "VPNv4 Unicast" and table == "vpnv6":
+                continue
+
+            if neighbour["ADDRESS_FAMILY"] == "VPNv6 Unicast" and table == "vpnv4":
+                continue
+
+            is_up = False
+            pfxrcd = -1
+            state = "Established"
+            if neighbour["STATE"] == "Established":
+                is_up = True
+                pfxrcd = neighbour["PREFIXES"]
+            else:
+                state = neighbour["STATE"]
+
+            routing_instance = "default"
+            if neighbour["VRF"] != "remote":
+                routing_instance = neighbour["VRF"]
+
+            results.append(
+                {
+                    "remote_ip": str(addr),
+                    "remote_asn": as_number,
+                    "address_family": table,
+                    "ip_version": ipversion,
+                    "is_up": is_up,
+                    "pfxrcd": pfxrcd,
+                    "state": state,
+                    "routing_instance": routing_instance,
+                    "protocol_instance": "default",
+                }
+            )
+
+        return results
+
     async def process_bgp_neighbours(self, result: list, table: str, prog_args: dict) -> list:
         """Process the BGP Neigbour output from devices through textFSM.
 
@@ -94,14 +170,6 @@ class CiscoIOSDevice(BaseDevice):
             else:
                 state = neighbour["STATE_PFXRCD"]
 
-            routing_instance = "default"
-            if "VRF" in neighbour and neighbour["VRF"]:
-                routing_instance = neighbour["VRF"]
-
-            protocol_instance = "default"
-            if "BGP_INSTANCE" in neighbour and neighbour["BGP_INSTANCE"]:
-                protocol_instance = neighbour["BGP_INSTANCE"]
-
             results.append(
                 {
                     "remote_ip": str(addr),
@@ -111,8 +179,8 @@ class CiscoIOSDevice(BaseDevice):
                     "is_up": is_up,
                     "pfxrcd": pfxrcd,
                     "state": state,
-                    "routing_instance": routing_instance,
-                    "protocol_instance": protocol_instance,
+                    "routing_instance": "default",
+                    "protocol_instance": "default",
                 }
             )
 
@@ -170,12 +238,15 @@ class CiscoIOSDevice(BaseDevice):
             table = reverse_commands[resp.channel_input]
             if table in ("vpnv4", "vpnv6"):
                 template_file = "cisco_iosxe_show_bgp_vrf.textfsm"
+                parsed_result = await loop.run_in_executor(None, self.parse_bgp_neighbours, resp.result, template_file)
+                pp.pprint(parsed_result)
+
+                result = result + await self.process_bgp_neighbours_vpn(parsed_result, table, prog_args)
             else:
                 template_file = "cisco_iosxe_show_bgp.textfsm"
+                parsed_result = await loop.run_in_executor(None, self.parse_bgp_neighbours, resp.result, template_file)
+                pp.pprint(parsed_result)
 
-            parsed_result = await loop.run_in_executor(None, self.parse_bgp_neighbours, resp.result, template_file)
-            pp.pprint(parsed_result)
-
-            result = result + await self.process_bgp_neighbours(parsed_result, table, prog_args)
+                result = result + await self.process_bgp_neighbours(parsed_result, table, prog_args)
 
         return result
