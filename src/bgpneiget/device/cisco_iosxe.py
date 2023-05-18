@@ -42,9 +42,9 @@ class CiscoIOSDevice(BaseDevice):
         elif table == "ipv6":
             return "show bgp ipv6 unicast summary"
         elif table == "vpnv4":
-            return "show bgp vpnv4 unicast all neighbors | include BGP neighbor is | Prefixes | BGP state | For address"
+            return "show ip bgp vpnv4 all neighbors | include BGP neighbor is | Prefixes | BGP state | For address | Connections established"
         elif table == "vpnv6":
-            return "show bgp vpnv6 unicast all neighbors | include BGP neighbor is | Prefixes | BGP state | For address"
+            return "show bgp vpnv6 unicast all neighbors | include BGP neighbor is | Prefixes | BGP state | For address | Connections established"
         else:
             raise ValueError("Unknown routing table.")
 
@@ -166,6 +166,7 @@ class CiscoIOSDevice(BaseDevice):
         template_file = f"{self.platform}_show_bgp.textfsm"
 
         for resp in response:
+            pp.pprint(resp.result)
             table = reverse_commands[resp.channel_input]
             if table in ("vpnv4", "vpnv6"):
                 template_file = "cisco_iosxe_show_bgp_vrf.textfsm"
