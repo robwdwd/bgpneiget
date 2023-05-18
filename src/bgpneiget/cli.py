@@ -169,9 +169,9 @@ def cli(**cli_args):
     except JSONDecodeError as err:
         raise SystemExit(f"Unable to parse configuration file: {err}") from err
 
-    if cli_args["asignore"] and cli_args["asexcept"]:
+    if cli_args["ignore_as"] and cli_args["except_as"]:
         raise SystemExit(
-            f"{os.path.basename(__file__)} error: argument --asignore: not allowed with argument --asexcept"
+            f"{os.path.basename(__file__)} error: argument --ignore-as: not allowed with argument --except-as"
         )
 
     if cli_args["seed"] is not None and cli_args["device"] is not None:
