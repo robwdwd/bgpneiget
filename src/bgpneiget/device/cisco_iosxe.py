@@ -9,7 +9,6 @@ import ipaddress
 import logging
 import os
 import pprint
-import sys
 from typing import Type
 
 from scrapli.driver.core import AsyncIOSXEDriver
@@ -75,48 +74,46 @@ class CiscoIOSDevice(BaseDevice):
             pp.pprint(neighbour)
             addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
 
-            if prog_args["verbose"] >= 1:
-                print(f"DEBUG: Found neighbour {neighbour}")
+            logging.debug("Found neighbour %s.", neighbour)
 
             ipversion = addr.version
             as_number = int(neighbour["NEIGH_AS"])
 
             if not neighbour["ADDRESS_FAMILY"]:
-                logging.debug(f"DEBUG: Ignoring neighbour '{neighbour['BGP_NEIGH']}' with no address family.")
+                logging.debug("DEBUG: Ignoring neighbour '%s' with no address family.", neighbour["BGP_NEIGH"])
                 continue
 
             if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
                 logging.debug(
-                    f"DEBUG: Ignoring neighbour '{neighbour['BGP_NEIGH']}', '{neighbour['NEIGH_AS']}' not in except AS list.",
-                    file=sys.stderr,
+                    "DEBUG: Ignoring neighbour '%s', '%s' not in except AS list.",
+                    neighbour["BGP_NEIGH"],
+                    neighbour["NEIGH_AS"],
                 )
                 continue
 
             if prog_args["ignore_as"] and as_number in prog_args["ignore_as"]:
                 logging.debug(
-                    f"DEBUG: Ignoring neighbour '{neighbour['BGP_NEIGH']}', '{neighbour['NEIGH_AS']}' in ignored AS list.",
-                    file=sys.stderr,
+                    "DEBUG: Ignoring neighbour '%s', '%s' in ignored AS list.",
+                    neighbour["BGP_NEIGH"],
+                    neighbour["NEIGH_AS"],
                 )
                 continue
 
             if neighbour["ADDRESS_FAMILY"] in ("IPv4 Unicast", "IPv6 Unicast"):
                 logging.debug(
-                    f"DEBUG: Ignoring vpn neighbour '{neighbour['BGP_NEIGH']}' with IPv4 or IPv6 address family.",
-                    file=sys.stderr,
+                    "DEBUG: Ignoring vpn neighbour '%s' with IPv4 or IPv6 address family.", neighbour["BGP_NEIGH"]
                 )
                 continue
 
             if neighbour["ADDRESS_FAMILY"] == "VPNv4 Unicast" and table == "vpnv6":
                 logging.debug(
-                    f"DEBUG: Ignoring vpnv4 neighbour '{neighbour['BGP_NEIGH']}' VPNv6 address family requested.",
-                    file=sys.stderr,
+                    "DEBUG: Ignoring vpnv4 neighbour '%s' VPNv6 address family requested.", neighbour["BGP_NEIGH"]
                 )
                 continue
 
             if neighbour["ADDRESS_FAMILY"] == "VPNv6 Unicast" and table == "vpnv4":
                 logging.debug(
-                    f"DEBUG: Ignoring vpnv6 neighbour '{neighbour['BGP_NEIGH']}' VPNv4 address family requested.",
-                    file=sys.stderr,
+                    "DEBUG: Ignoring vpnv6 neighbour '%s' VPNv4 address family requested.", neighbour["BGP_NEIGH"]
                 )
                 continue
 
@@ -167,30 +164,29 @@ class CiscoIOSDevice(BaseDevice):
         #     'STATE_PFXRCD': '3',
         #     'VRF': 'VRF-IPC103293-1-00005'},
 
-        pp.pprint(table)
-
         results = []
         for neighbour in result:
             pp.pprint(neighbour)
             addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
 
-            if prog_args["verbose"] >= 1:
-                print(f"DEBUG: Found neighbour {neighbour}")
+            logging.debug("Found neighbour %s.", neighbour)
 
             ipversion = addr.version
             as_number = int(neighbour["NEIGH_AS"])
 
             if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
                 logging.debug(
-                    f"DEBUG: Ignoring neighbour '{neighbour['BGP_NEIGH']}', '{neighbour['NEIGH_AS']}' not in except AS list.",
-                    file=sys.stderr,
+                    "DEBUG: Ignoring neighbour '%s', '%s' not in except AS list.",
+                    neighbour["BGP_NEIGH"],
+                    neighbour["NEIGH_AS"],
                 )
                 continue
 
             if prog_args["ignore_as"] and as_number in prog_args["ignore_as"]:
                 logging.debug(
-                    f"DEBUG: Ignoring neighbour '{neighbour['BGP_NEIGH']}', '{neighbour['NEIGH_AS']}' in ignored AS list.",
-                    file=sys.stderr,
+                    "DEBUG: Ignoring neighbour '%s', '%s' in ignored AS list.",
+                    neighbour["BGP_NEIGH"],
+                    neighbour["NEIGH_AS"],
                 )
                 continue
 
@@ -264,21 +260,16 @@ class CiscoIOSDevice(BaseDevice):
 
         result = []
 
-        template_file = f"{self.platform}_show_bgp.textfsm"
-
         for resp in response:
-            pp.pprint(resp.result)
             table = reverse_commands[resp.channel_input]
             if table in ("vpnv4", "vpnv6"):
                 template_file = "cisco_iosxe_show_bgp_vrf.textfsm"
                 parsed_result = await loop.run_in_executor(None, self.parse_bgp_neighbours, resp.result, template_file)
-                pp.pprint(parsed_result)
 
                 result = result + await self.process_bgp_neighbours_vpn(parsed_result, table, prog_args)
             else:
                 template_file = "cisco_iosxe_show_bgp.textfsm"
                 parsed_result = await loop.run_in_executor(None, self.parse_bgp_neighbours, resp.result, template_file)
-                pp.pprint(parsed_result)
 
                 result = result + await self.process_bgp_neighbours(parsed_result, table, prog_args)
 

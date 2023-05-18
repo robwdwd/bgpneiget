@@ -44,11 +44,9 @@ def filter_ri(neighbours, filter_re):
     for routing_instance in neighbours:
         if ri_re.match(routing_instance):
             results[routing_instance] = neighbours[routing_instance]["peers"]
-            if prog_args["verbose"] >= 1:
-                print("DEBUG: Found matching routing instance {}".format(routing_instance))
+            logging.debug("DEBUG: Found matching routing instance %s", routing_instance)
         else:
-            if prog_args["verbose"] >= 2:
-                print("DEBUG: Found non matching routing instance {}".format(routing_instance))
+            logging.debug("DEBUG: Found non matching routing instance %s", routing_instance)
 
     return results
 
@@ -68,7 +66,7 @@ async def device_worker(name: str, queue: asyncio.Queue, prog_args: dict):
             pp.pprint(result)
 
         except Exception as err:
-            print(f"ERROR: {name}, Device failed: {err}")
+            logging.error("%s: Device failed: %s", device.hostname, err)
 
         queue.task_done()
 
@@ -89,7 +87,7 @@ async def do_devices(devices: dict, prog_args: dict):
             new_device = await init_device(device)
             await queue.put(new_device)
         else:
-            print(f"WARNING: {device['os']} is not a supported OS for device {device['hostname']}.")
+            logging.warning("%s is not a supported OS for device %s.", {device["os"]}, {device["hostname"]})
 
     # Create three worker tasks to process the queue concurrently.
     tasks = []
@@ -184,19 +182,13 @@ def cli(**cli_args):
     devices = {}
 
     if cli_args["device"]:
-        if cli_args["listri"]:
-            bgp_neighbours = get_neighbours(cli_args["device"][0], cli_args["device"][1], cli_args["device"][2])
-            if bgp_neighbours:
-                for routing_instance in bgp_neighbours:
-                    print(routing_instance)
-        else:
-            devices = {
-                cli_args["device"][0]: {
-                    "hostname": cli_args["device"][0],
-                    "os": cli_args["device"][1],
-                    "protocol": cli_args["device"][2],
-                }
+        devices = {
+            cli_args["device"][0]: {
+                "hostname": cli_args["device"][0],
+                "os": cli_args["device"][1],
+                "protocol": cli_args["device"][2],
             }
+        }
 
     elif cli_args["seed"]:
         try:

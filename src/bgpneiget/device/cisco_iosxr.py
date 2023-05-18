@@ -9,7 +9,6 @@ import ipaddress
 import logging
 import os
 import pprint
-import sys
 from typing import Type
 
 from scrapli.driver.core import AsyncIOSXRDriver
@@ -51,37 +50,29 @@ class CiscoIOSXRDevice(BaseDevice):
         Returns:
             list: BGP Neighbours
         """
-
-        #   { 'BGP_INSTANCE': 'default',
-        #     'BGP_NEIGH': '100.65.5.175',
-        #     'NEIGH_AS': '65505',
-        #     'STATE_PFXRCD': '3',
-        #     'VRF': 'VRF-IPC103293-1-00005'},
-
-        pp.pprint(table)
-
         results = []
         for neighbour in result:
             pp.pprint(neighbour)
             addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
 
-            if prog_args["verbose"] >= 1:
-                print(f"DEBUG: Found neighbour {neighbour}")
+            logging.debug("Found neighbour %s.", neighbour)
 
             ipversion = addr.version
             as_number = int(neighbour["NEIGH_AS"])
 
             if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
                 logging.debug(
-                    f"DEBUG: Ignoring neighbour '{neighbour['BGP_NEIGH']}', '{neighbour['NEIGH_AS']}' not in except AS list.",
-                    file=sys.stderr,
+                    "DEBUG: Ignoring neighbour '%s', '%s' not in except AS list.",
+                    neighbour["BGP_NEIGH"],
+                    neighbour["NEIGH_AS"],
                 )
                 continue
 
             if prog_args["ignore_as"] and as_number in prog_args["ignore_as"]:
                 logging.debug(
-                    f"DEBUG: Ignoring neighbour '{neighbour['BGP_NEIGH']}', '{neighbour['NEIGH_AS']}' in ignored AS list.",
-                    file=sys.stderr,
+                    "DEBUG: Ignoring neighbour '%s', '%s' in ignored AS list.",
+                    neighbour["BGP_NEIGH"],
+                    neighbour["NEIGH_AS"],
                 )
                 continue
 
