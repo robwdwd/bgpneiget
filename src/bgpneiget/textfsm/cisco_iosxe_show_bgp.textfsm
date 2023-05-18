@@ -1,4 +1,3 @@
-
 Value BGP_NEIGH (\d+?\.\d+?\.\d+?\.\d+?|[0-9A-Fa-f\:]+)
 Value NEIGH_AS (\d+)
 Value UP_DOWN (\S+?)

@@ -1,0 +1,16 @@
+Value Filldown,BGP_NEIGH (\d+?\.\d+?\.\d+?\.\d+?|[0-9A-Fa-f\:]+)
+Value Filldown,VRF (\S+)
+Value Filldown,NEIGH_AS (\d+)
+Value Filldown,STATE (\S+?\s+\S+?|\S+?)
+Value ADDRESS_FAMILY (.+)
+Value PREFIXES (\d+)
+
+
+Start
+  ^BGP neighbor is ${BGP_NEIGH},\s+remote AS ${NEIGH_AS}.+$$
+  ^BGP neighbor is ${BGP_NEIGH},\s+vrf ${VRF},\s+remote AS ${NEIGH_AS}.+$$
+  ^\s+BGP state = ${STATE}
+  ^\s+For address family: ${ADDRESS_FAMILY}$$
+  ^Prefixes Current:\s+\d+\s+${PREFIXES}(.+?)$$ -> Record
+
+EOF

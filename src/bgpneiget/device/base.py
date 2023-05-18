@@ -96,15 +96,3 @@ class BaseDevice(ABC):
         Returns:
             list: Found BGP neighbours
         """
-
-    @abstractmethod
-    async def process_bgp_neighbours(self, result: list, table: str, prog_args: dict) -> list:
-        """Process BGP neigbour output.
-
-        Args:
-            result (list): Parsed output from network device
-            prog_args (dict): Program arguments
-
-        Returns:
-            list: BGP Neighbours
-        """

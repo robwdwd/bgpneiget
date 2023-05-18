@@ -27,47 +27,6 @@ from bgpneiget.runcmds import get_output
 pp = pprint.PrettyPrinter(indent=2, width=120)
 
 
-def parse_neighbours(neighbours):
-    """Parse the bgp neighbours from network device.
-
-    Args:
-        neighbours (dict): Neighbour list.
-
-    Returns:
-        dict: Parsed neighbour list.
-    """
-
-    # Check to see if ipv4 and ipv6 is enabled on this neighbour
-
-    if neighbours[neighbour]["is_up"]:
-        results[neighbour]["routes"] = {}
-        results[neighbour]["routes"][address_family] = neighbours[neighbour]["address_family"][address_family]
-
-        # IPv4 BGP neighbour with IPv6 routes.
-        if ipversion == 4 and "ipv6" in neighbours[neighbour]["address_family"]:
-            # If sent_prefixes is -1 then ipv6 routes are not enabled on this neighbour (mainly for JunOS)
-            if neighbours[neighbour]["address_family"]["ipv6"]["sent_prefixes"] != -1:
-                results[neighbour]["routes"]["ipv6"] = neighbours[neighbour]["address_family"]["ipv6"]
-                results[neighbour]["dual_stack"] = True
-                if prog_args["verbose"] >= 2:
-                    print("DEBUG: Neighbour {} is multi-protocol.".format(neighbour), file=sys.stderr)
-
-        # IPv6 BGP neighbour with IPv4 routes.
-        if ipversion == 6 and "ipv4" in neighbours[neighbour]["address_family"]:
-            # If sent_prefixes is -1 then ipv4 routes are not enabled on this neighbour (mainly for JunOS)
-            if neighbours[neighbour]["address_family"]["ipv4"]["sent_prefixes"] != -1:
-                results[neighbour]["routes"]["ipv4"] = neighbours[neighbour]["address_family"]["ipv4"]
-                results[neighbour]["dual_stack"] = True
-                if prog_args["verbose"] >= 2:
-                    print("DEBUG: Neighbour {} is multi-protocol.".format(neighbour), file=sys.stderr)
-    else:
-        results[neighbour]["routes"] = None
-        if prog_args["verbose"] >= 2:
-            print("DEBUG: Neighbour {} is down.".format(neighbour), file=sys.stderr)
-
-    return results
-
-
 def filter_ri(neighbours, filter_re):
     """Filter neighbours based on routing instance match.
 
@@ -179,25 +138,25 @@ async def do_devices(devices: dict, prog_args: dict):
 )
 @click.option("--with-vrfs", is_flag=True, help="Include neighbours in vrfs/routing instance.")
 @click.option(
-    "--asexcept",
+    "--except-as",
     type=int,
     metavar="ASNUM",
     multiple=True,
     help="Filter out all AS number except this one. Can be used multiple times.",
 )
 @click.option(
-    "--tables",
+    "--ignore-as", type=int, metavar="ASNUM", multiple=True, help="AS number to filter out. Can be used multiple times."
+)
+@click.option(
+    "--ri", default="global", help="Regular expressions of routing instances / vrfs to match. Default 'global'"
+)
+@click.option(
+    "--table",
     type=str,
     metavar="TABLE",
     multiple=True,
     default=["ipv4", "ipv6"],
     help="Get BGP neighbours from these tables.",
-)
-@click.option(
-    "--asignore", type=int, metavar="ASNUM", multiple=True, help="AS number to filter out. Can be used multiple times."
-)
-@click.option(
-    "--ri", default="global", help="Regular expressions of routing instances / vrfs to match. Default 'global'"
 )
 def cli(**cli_args):
     """Entry point for command.
@@ -247,11 +206,11 @@ def cli(**cli_args):
     prog_args = {
         "username": cfg["username"],
         "password": cfg["password"],
-        "except_as": cli_args["asexcept"],
-        "verbose": cli_args["verbose"],
-        "ignore_as": cli_args["asignore"],
-        "tables": cli_args["tables"],
+        "except_as": cli_args["except_as"],
+        "ignore_as": cli_args["ignore_as"],
+        "table": cli_args["table"],
         "with_vrfs": cli_args["with_vrfs"],
+        "verbose": cli_args["verbose"],
     }
 
     asyncio.run(do_devices(devices, prog_args))
