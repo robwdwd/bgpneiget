@@ -16,7 +16,7 @@ class BaseDevice(ABC):
     """Base Class for all device types."""
 
     PROTOCOL_TRANSPORT_MAP = {
-        "TELNET": "telnet",
+        "TELNET": "asynctelnet",
         "SSH": "asyncssh",
     }
 
