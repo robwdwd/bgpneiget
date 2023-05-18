@@ -14,7 +14,6 @@ import logging
 import os
 import pprint
 import re
-import sys
 from json import JSONDecodeError
 
 import click
@@ -23,8 +22,6 @@ from bgpneiget.device.base import BaseDevice
 from bgpneiget.devices import init_device
 
 pp = pprint.PrettyPrinter(indent=2, width=120)
-
-logging.basicConfig(format="%(asctime)s %(message)s")
 
 
 def filter_ri(neighbours, filter_re):
@@ -179,6 +176,7 @@ def cli(**cli_args):
     if cli_args["seed"] is not None and cli_args["device"] is not None:
         raise SystemExit(f"{os.path.basename(__file__)} error: argument --seed: not allowed with argument --device")
 
+    logging.basicConfig(format="%(asctime)s %(message)s", level=cli_args["loglevel"].upper())
     devices = {}
 
     if cli_args["device"]:
