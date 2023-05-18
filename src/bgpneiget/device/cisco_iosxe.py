@@ -82,32 +82,49 @@ class CiscoIOSDevice(BaseDevice):
 
             if not neighbour["ADDRESS_FAMILY"]:
                 if prog_args["verbose"] >= 2:
-                    print(f"DEBUG: Ignoring neighbour '{neighbour["BGP_NEIGH"]}' with no address family.", file=sys.stderr)
+                    print(
+                        f"DEBUG: Ignoring neighbour '{neighbour['BGP_NEIGH']}' with no address family.", file=sys.stderr
+                    )
                 continue
 
             if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
                 if prog_args["verbose"] >= 2:
-                    print(f"DEBUG: Ignoring neighbour '{neighbour['BGP_NEIGH']}', '{neighbour['NEIGH_AS']}' not in except AS list.", file=sys.stderr)
+                    print(
+                        f"DEBUG: Ignoring neighbour '{neighbour['BGP_NEIGH']}', '{neighbour['NEIGH_AS']}' not in except AS list.",
+                        file=sys.stderr,
+                    )
                 continue
 
             if prog_args["ignore_as"] and as_number in prog_args["ignore_as"]:
                 if prog_args["verbose"] >= 2:
-                    print(f"DEBUG: Ignoring neighbour '{neighbour['BGP_NEIGH']}', '{neighbour['NEIGH_AS']}' in ignored AS list.", file=sys.stderr)
+                    print(
+                        f"DEBUG: Ignoring neighbour '{neighbour['BGP_NEIGH']}', '{neighbour['NEIGH_AS']}' in ignored AS list.",
+                        file=sys.stderr,
+                    )
                 continue
 
             if neighbour["ADDRESS_FAMILY"] in ("IPv4 Unicast", "IPv6 Unicast"):
                 if prog_args["verbose"] >= 2:
-                    print(f"DEBUG: Ignoring vpn neighbour '{neighbour["BGP_NEIGH"]}' with IPv4 or IPv6 address family.", file=sys.stderr)
+                    print(
+                        f"DEBUG: Ignoring vpn neighbour '{neighbour['BGP_NEIGH']}' with IPv4 or IPv6 address family.",
+                        file=sys.stderr,
+                    )
                 continue
 
             if neighbour["ADDRESS_FAMILY"] == "VPNv4 Unicast" and table == "vpnv6":
                 if prog_args["verbose"] >= 2:
-                    print(f"DEBUG: Ignoring vpnv4 neighbour '{neighbour["BGP_NEIGH"]}' VPNv6 address family requested.", file=sys.stderr)
+                    print(
+                        f"DEBUG: Ignoring vpnv4 neighbour '{neighbour['BGP_NEIGH']}' VPNv6 address family requested.",
+                        file=sys.stderr,
+                    )
                 continue
 
             if neighbour["ADDRESS_FAMILY"] == "VPNv6 Unicast" and table == "vpnv4":
                 if prog_args["verbose"] >= 2:
-                    print(f"DEBUG: Ignoring vpnv6 neighbour '{neighbour["BGP_NEIGH"]}' VPNv4 address family requested.", file=sys.stderr)
+                    print(
+                        f"DEBUG: Ignoring vpnv6 neighbour '{neighbour['BGP_NEIGH']}' VPNv4 address family requested.",
+                        file=sys.stderr,
+                    )
                 continue
 
             is_up = False
@@ -172,12 +189,18 @@ class CiscoIOSDevice(BaseDevice):
 
             if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
                 if prog_args["verbose"] >= 2:
-                    print(f"DEBUG: Ignoring neighbour '{neighbour['BGP_NEIGH']}', '{neighbour['NEIGH_AS']}' not in except AS list.", file=sys.stderr)
+                    print(
+                        f"DEBUG: Ignoring neighbour '{neighbour['BGP_NEIGH']}', '{neighbour['NEIGH_AS']}' not in except AS list.",
+                        file=sys.stderr,
+                    )
                 continue
 
             if prog_args["ignore_as"] and as_number in prog_args["ignore_as"]:
                 if prog_args["verbose"] >= 2:
-                    print(f"DEBUG: Ignoring neighbour '{neighbour['BGP_NEIGH']}', '{neighbour['NEIGH_AS']}' in ignored AS list.", file=sys.stderr)
+                    print(
+                        f"DEBUG: Ignoring neighbour '{neighbour['BGP_NEIGH']}', '{neighbour['NEIGH_AS']}' in ignored AS list.",
+                        file=sys.stderr,
+                    )
                 continue
 
             is_up = False

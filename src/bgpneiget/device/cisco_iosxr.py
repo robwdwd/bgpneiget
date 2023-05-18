@@ -72,12 +72,18 @@ class CiscoIOSXRDevice(BaseDevice):
 
             if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
                 if prog_args["verbose"] >= 2:
-                    print(f"DEBUG: Ignoring neighbour '{neighbour['BGP_NEIGH']}', '{neighbour['NEIGH_AS']}' not in except AS list.", file=sys.stderr)
+                    print(
+                        f"DEBUG: Ignoring neighbour '{neighbour['BGP_NEIGH']}', '{neighbour['NEIGH_AS']}' not in except AS list.",
+                        file=sys.stderr,
+                    )
                 continue
 
             if prog_args["ignore_as"] and as_number in prog_args["ignore_as"]:
                 if prog_args["verbose"] >= 2:
-                    print(f"DEBUG: Ignoring neighbour '{neighbour['BGP_NEIGH']}', '{neighbour['NEIGH_AS']}' in ignored AS list.", file=sys.stderr)
+                    print(
+                        f"DEBUG: Ignoring neighbour '{neighbour['BGP_NEIGH']}', '{neighbour['NEIGH_AS']}' in ignored AS list.",
+                        file=sys.stderr,
+                    )
                 continue
 
             is_up = False
