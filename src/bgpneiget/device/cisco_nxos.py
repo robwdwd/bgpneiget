@@ -6,9 +6,9 @@
 #
 import asyncio
 import ipaddress
+import logging
 import os
 import pprint
-import sys
 from typing import Type
 
 from scrapli.driver.core import AsyncNXOSDriver
@@ -18,6 +18,8 @@ from bgpneiget.device.base import BaseDevice
 from bgpneiget.runcmds import get_output
 
 pp = pprint.PrettyPrinter(indent=2, width=120)
+
+logger = logging.getLogger()
 
 
 class CiscoNXOSDevice(BaseDevice):

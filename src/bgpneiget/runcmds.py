@@ -6,7 +6,7 @@
 #
 """Device command runner."""
 
-from typing import Dict, Union
+from typing import Dict
 
 from scrapli.response import MultiResponse
 
@@ -37,12 +37,14 @@ async def get_output(
 
     try:
         async with driver(**driver_options) as net_connect:
-            if device.platform == 'juniper_junos':
-                net_connect.comms_prompt_pattern = '^Iinuu0to8iewuiz>\s*$'
-                response = await net_connect.send_command(command='set cli prompt Iinuu0to8iewuiz>', timeout_ops=timeout)
+            if device.platform == "juniper_junos":
+                net_connect.comms_prompt_pattern = "^Iinuu0to8iewuiz>\s*$"
+                response = await net_connect.send_command(
+                    command="set cli prompt Iinuu0to8iewuiz>", timeout_ops=timeout
+                )
 
             response = await net_connect.send_commands(commands=list(cli_cmds.values()), timeout_ops=timeout)
-            
+
     except Exception as err:
         raise err
 

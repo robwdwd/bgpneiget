@@ -5,9 +5,8 @@
 # have been included as part of this distribution.
 #
 import ipaddress
-import json
+import logging
 import pprint
-from json import JSONDecodeError
 from typing import Type
 
 import xmltodict
@@ -17,6 +16,8 @@ from bgpneiget.device.base import BaseDevice
 from bgpneiget.runcmds import get_output
 
 pp = pprint.PrettyPrinter(indent=2, width=120)
+
+logger = logging.getLogger()
 
 
 class JunOsDevice(BaseDevice):

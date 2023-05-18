@@ -18,7 +18,7 @@ from bgpneiget.device.base import BaseDevice
 from bgpneiget.runcmds import get_output
 
 pp = pprint.PrettyPrinter(indent=2, width=120)
-
+logger = logging.getLogger()
 
 class CiscoIOSDevice(BaseDevice):
     """Cisco IOS and IOS-XE devices."""
