@@ -10,7 +10,9 @@ from typing import Type
 
 from bgpneiget.device.arista import EOSDevice
 from bgpneiget.device.base import BaseDevice
-from bgpneiget.device.cisco import CiscoIOSDevice, CiscoIOSXRDevice, CiscoNXOSDevice
+from bgpneiget.device.cisco_iosxe import CiscoIOSDevice
+from bgpneiget.device.cisco_iosxr import CiscoIOSXRDevice
+from bgpneiget.device.cisco_nxos import CiscoNXOSDevice
 from bgpneiget.device.juniper import JunOsDevice
 
 DEVICE_TYPE_MAP = {
