@@ -55,13 +55,13 @@ class CiscoIOSXRDevice(BaseDevice):
             pp.pprint(neighbour)
             addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
 
-            logging.debug("Found neighbour %s.", neighbour)
+            logger.debug("Found neighbour %s.",  neighbour)
 
             ipversion = addr.version
             as_number = int(neighbour["NEIGH_AS"])
 
             if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
-                logging.debug(
+                logger.debug(
                     "DEBUG: Ignoring neighbour '%s', '%s' not in except AS list.",
                     neighbour["BGP_NEIGH"],
                     neighbour["NEIGH_AS"],
@@ -69,7 +69,7 @@ class CiscoIOSXRDevice(BaseDevice):
                 continue
 
             if prog_args["ignore_as"] and as_number in prog_args["ignore_as"]:
-                logging.debug(
+                logger.debug(
                     "DEBUG: Ignoring neighbour '%s', '%s' in ignored AS list.",
                     neighbour["BGP_NEIGH"],
                     neighbour["NEIGH_AS"],

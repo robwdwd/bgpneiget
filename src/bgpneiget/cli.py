@@ -23,6 +23,9 @@ from bgpneiget.devices import init_device
 
 pp = pprint.PrettyPrinter(indent=2, width=120)
 
+logging.basicConfig(format="%(asctime)s %(message)s")
+logger = logging.getLogger()
+
 
 def filter_ri(neighbours, filter_re):
     """Filter neighbours based on routing instance match.
@@ -41,9 +44,9 @@ def filter_ri(neighbours, filter_re):
     for routing_instance in neighbours:
         if ri_re.match(routing_instance):
             results[routing_instance] = neighbours[routing_instance]["peers"]
-            logging.debug("DEBUG: Found matching routing instance %s", routing_instance)
+            logger.debug("DEBUG: Found matching routing instance %s", routing_instance)
         else:
-            logging.debug("DEBUG: Found non matching routing instance %s", routing_instance)
+            logger.debug("DEBUG: Found non matching routing instance %s", routing_instance)
 
     return results
 
@@ -63,7 +66,7 @@ async def device_worker(name: str, queue: asyncio.Queue, prog_args: dict):
             pp.pprint(result)
 
         except Exception as err:
-            logging.error("%s: Device failed: %s", device.hostname, err)
+            logger.error("%s: Device failed: %s", device.hostname, err)
 
         queue.task_done()
 
@@ -84,7 +87,7 @@ async def do_devices(devices: dict, prog_args: dict):
             new_device = await init_device(device)
             await queue.put(new_device)
         else:
-            logging.warning("%s is not a supported OS for device %s.", {device["os"]}, {device["hostname"]})
+            logger.warning("%s is not a supported OS for device %s.", {device["os"]}, {device["hostname"]})
 
     # Create three worker tasks to process the queue concurrently.
     tasks = []
@@ -176,7 +179,7 @@ def cli(**cli_args):
     if cli_args["seed"] is not None and cli_args["device"] is not None:
         raise SystemExit(f"{os.path.basename(__file__)} error: argument --seed: not allowed with argument --device")
 
-    logging.basicConfig(format="%(asctime)s %(message)s", level=cli_args["loglevel"].upper())
+    logger.setLevel(cli_args["loglevel"].upper())
     devices = {}
 
     if cli_args["device"]:
