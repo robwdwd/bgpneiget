@@ -9,8 +9,8 @@
 
 """Get BGP neighbours from network devices."""
 import asyncio
-import ipaddress
 import json
+import logging
 import os
 import pprint
 import re
@@ -18,13 +18,13 @@ import sys
 from json import JSONDecodeError
 
 import click
-from textfsm import TextFSM
 
 from bgpneiget.device.base import BaseDevice
 from bgpneiget.devices import init_device
-from bgpneiget.runcmds import get_output
 
 pp = pprint.PrettyPrinter(indent=2, width=120)
+
+logging.basicConfig(format="%(asctime)s %(message)s")
 
 
 def filter_ri(neighbours, filter_re):
@@ -45,10 +45,10 @@ def filter_ri(neighbours, filter_re):
         if ri_re.match(routing_instance):
             results[routing_instance] = neighbours[routing_instance]["peers"]
             if prog_args["verbose"] >= 1:
-                print("DEBUG: Found matching routing instance {}".format(routing_instance), file=sys.stderr)
+                print("DEBUG: Found matching routing instance {}".format(routing_instance))
         else:
             if prog_args["verbose"] >= 2:
-                print("DEBUG: Found non matching routing instance {}".format(routing_instance), file=sys.stderr)
+                print("DEBUG: Found non matching routing instance {}".format(routing_instance))
 
     return results
 
@@ -68,7 +68,7 @@ async def device_worker(name: str, queue: asyncio.Queue, prog_args: dict):
             pp.pprint(result)
 
         except Exception as err:
-            print(f"ERROR: {name}, Device failed: {err}", file=sys.stderr)
+            print(f"ERROR: {name}, Device failed: {err}")
 
         queue.task_done()
 
@@ -89,7 +89,7 @@ async def do_devices(devices: dict, prog_args: dict):
             new_device = await init_device(device)
             await queue.put(new_device)
         else:
-            print(f"WARNING: {device['os']} is not a supported OS for device {device['hostname']}.", file=sys.stderr)
+            print(f"WARNING: {device['os']} is not a supported OS for device {device['hostname']}.")
 
     # Create three worker tasks to process the queue concurrently.
     tasks = []
@@ -115,7 +115,11 @@ async def do_devices(devices: dict, prog_args: dict):
     type=click.File(mode="r"),
 )
 @click.option(
-    "--verbose", "-v", count=True, help="Output some debug information, use multiple times for increased verbosity."
+    "--loglevel",
+    "-L",
+    type=str,
+    default="WARNING",
+    help="Set logging level.",
 )
 @click.option(
     "-s",
@@ -210,7 +214,6 @@ def cli(**cli_args):
         "ignore_as": cli_args["ignore_as"],
         "table": cli_args["table"],
         "with_vrfs": cli_args["with_vrfs"],
-        "verbose": cli_args["verbose"],
     }
 
     asyncio.run(do_devices(devices, prog_args))
