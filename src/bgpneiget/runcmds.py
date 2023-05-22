@@ -8,6 +8,7 @@
 
 from typing import Dict
 
+from scrapli.exceptions import ScrapliException
 from scrapli.response import MultiResponse
 
 from bgpneiget.device.base import BaseDevice
@@ -45,7 +46,7 @@ async def get_output(
 
             response = await net_connect.send_commands(commands=list(cli_cmds.values()), timeout_ops=timeout)
 
-    except Exception as err:
+    except ScrapliException as err:
         raise err
 
     return response

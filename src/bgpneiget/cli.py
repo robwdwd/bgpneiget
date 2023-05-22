@@ -66,7 +66,7 @@ async def device_worker(name: str, queue: asyncio.Queue, prog_args: dict):
             pp.pprint(result)
 
         except Exception as err:
-            logger.error("%s: Device failed: %s", device.hostname, err)
+            logger.exception("%s: Device failed: %s", device.hostname, err)
 
         queue.task_done()
 
