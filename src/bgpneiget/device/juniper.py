@@ -23,6 +23,8 @@ logger = logging.getLogger()
 class JunOsDevice(BaseDevice):
     """Juniper JunOS devices."""
 
+    AF_MAP = {"inet": "ipv4", "inet6": "ipv6"}
+
     def get_driver(self) -> Type[AsyncJunosDriver]:
         """Get scrapli driver for this device.
 
@@ -94,22 +96,29 @@ class JunOsDevice(BaseDevice):
                 continue
 
             is_up = False
-            pfxrcd = -1
+
             state = "Established"
 
             if bgp_peer["peer-state"] == "Established":
                 is_up = True
-                pfxrcd = bgp_peer["bgp-rib"]["accepted-prefix-count"]
             else:
                 state = bgp_peer["peer-state"]
 
-            routing_instance = "default"
-            address_family = 'ipv4'
-            if "peer-cfg-rti" in bgp_peer and bgp_peer["peer-cfg-rti"]:
-                routing_instance = bgp_peer["peer-cfg-rti"]
+            routing_instance = "default" if bgp_peer["peer-fwd-rti"] == "master" else bgp_peer["peer-fwd-rti"]
 
+            # BGP RIB must exist
+            if "bgp-rib" in bgp_peer:
+                pfxrcd = -1
+                if routing_instance == "default":
+                    family = bgp_peer["bgp-rib"]["name"].rsplit(".")
+                    pp.pprint(family)
+                try:
+                    address_family = self.AF_MAP[family[0]]
+                except KeyError:
+                    continue
 
-           #address_family = bgp_peer["nlri-type-peer"]
+            address_family = "ipv4"
+            # address_family = bgp_peer["nlri-type-peer"]
 
             results.append(
                 {
