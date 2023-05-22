@@ -106,13 +106,14 @@ class JunOsDevice(BaseDevice):
 
             # BGP RIB must exist
             if "bgp-rib" in bgp_peer:
-                pfxrcd = -1
-                family = bgp_peer["bgp-rib"]["name"].rsplit(".")
-                pp.pprint(family)
-                try:
-                    address_family = self.AF_MAP[family[0]]
-                except KeyError:
-                    continue
+                for table in bgp_peer["bgp-rib"]:
+                    pfxrcd = -1
+                    family = bgp_peer["bgp-rib"]["name"].rsplit(".")
+                    pp.pprint(family)
+                    try:
+                        address_family = self.AF_MAP[family[0]]
+                    except KeyError:
+                        continue
 
             address_family = "ipv4"
             # address_family = bgp_peer["nlri-type-peer"]
