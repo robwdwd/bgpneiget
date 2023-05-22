@@ -65,15 +65,21 @@ class JunOsDevice(BaseDevice):
         if "bgp-peer" not in data["rpc-reply"]["bgp-information"]:
             return []
 
-        results = {}
+        results = []
 
         for bgp_peer in data["rpc-reply"]["bgp-information"]["bgp-peer"]:
+            neighbour = {}
             remote_ip = bgp_peer["peer-address"]
             if "+" in remote_ip:
                 remote_ip = remote_ip[0 : remote_ip.find("+")]
-            remote_ip = ipaddress.ip_address(remote_ip)
+            addr = ipaddress.ip_address(remote_ip)
 
-            results[str(remote_ip)] = {}
+            neighbour['remote_ip'] = str(addr)
+            neighbour['ip_version'] = addr.version
+            neighbour['remote_asn'] = bgp_peer['peer-as']
+            neighbour['state'] = bgp_peer['peer-state']
+            
+            results.append (neighbour)
 
         return results
 
@@ -90,13 +96,14 @@ class JunOsDevice(BaseDevice):
 
         commands["all"] = self.get_bgp_cmd_global()
 
-        pp.pprint(commands)
+        pp.pprint(list(commands.values()))
         response = await get_output(self, commands, prog_args["username"], prog_args["password"])
 
-        response["all"] = response["all"][: response["all"].rfind("\n")]
+        result = []
 
-        pp.pprint(response)
+        for resp in response:
 
-        result = self.process_bgp_neighbours(response["all"])
+          stripped_response = resp.result[: resp.result.rfind("\n")]
+          result = result + await self.process_bgp_neighbours(stripped_response, prog_args)
 
         return result
