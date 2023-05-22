@@ -68,18 +68,56 @@ class JunOsDevice(BaseDevice):
         results = []
 
         for bgp_peer in data["rpc-reply"]["bgp-information"]["bgp-peer"]:
-            neighbour = {}
-            remote_ip = bgp_peer["peer-address"]
+            remote_ip: str = bgp_peer["peer-address"]
             if "+" in remote_ip:
                 remote_ip = remote_ip[0 : remote_ip.find("+")]
             addr = ipaddress.ip_address(remote_ip)
 
-            neighbour['remote_ip'] = str(addr)
-            neighbour['ip_version'] = addr.version
-            neighbour['remote_asn'] = bgp_peer['peer-as']
-            neighbour['state'] = bgp_peer['peer-state']
-            
-            results.append (neighbour)
+            as_number = int(bgp_peer["peer-as"])
+
+            if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
+                logger.debug(
+                    "DEBUG: Ignoring neighbour '%s', '%s' not in except AS list.",
+                    str(addr),
+                    as_number,
+                )
+                continue
+
+            if prog_args["ignore_as"] and as_number in prog_args["ignore_as"]:
+                logger.debug(
+                    "DEBUG: Ignoring neighbour '%s', '%s' in ignored AS list.",
+                    str(addr),
+                    as_number,
+                )
+                continue
+
+            is_up = False
+            pfxrcd = -1
+            state = "Established"
+
+            if bgp_peer["peer-state"] == "Established":
+                is_up = True
+                pfxrcd = bgp_peer["bgp-rib"]["accepted-prefix-count"]
+            else:
+                state = bgp_peer["peer-state"]
+
+            routing_instance = bgp_peer["bgp-rib"]["name"]
+
+            address_family = bgp_peer["bgp-option-information"]["address-families"]
+
+            results.append(
+                {
+                    "remote_ip": str(addr),
+                    "remote_asn": as_number,
+                    "address_family": address_family,
+                    "ip_version": addr.version,
+                    "is_up": is_up,
+                    "pfxrcd": pfxrcd,
+                    "state": state,
+                    "routing_instance": routing_instance,
+                    "protocol_instance": "default",
+                }
+            )
 
         return results
 
@@ -102,8 +140,7 @@ class JunOsDevice(BaseDevice):
         result = []
 
         for resp in response:
-
-          stripped_response = resp.result[: resp.result.rfind("\n")]
-          result = result + await self.process_bgp_neighbours(stripped_response, prog_args)
+            stripped_response = resp.result[: resp.result.rfind("\n")]
+            result = result + await self.process_bgp_neighbours(stripped_response, prog_args)
 
         return result

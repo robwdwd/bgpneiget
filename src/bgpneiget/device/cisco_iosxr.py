@@ -21,6 +21,7 @@ pp = pprint.PrettyPrinter(indent=2, width=120)
 
 logger = logging.getLogger()
 
+
 class CiscoIOSXRDevice(BaseDevice):
     """Cisco IOS-XR devices."""
 
@@ -54,18 +55,14 @@ class CiscoIOSXRDevice(BaseDevice):
         results = []
         for neighbour in result:
             pp.pprint(neighbour)
-            addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
 
-            logger.debug("Found neighbour %s.",  neighbour)
-
-            ipversion = addr.version
             as_number = int(neighbour["NEIGH_AS"])
 
             if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
                 logger.debug(
                     "DEBUG: Ignoring neighbour '%s', '%s' not in except AS list.",
                     neighbour["BGP_NEIGH"],
-                    neighbour["NEIGH_AS"],
+                    as_number,
                 )
                 continue
 
@@ -73,13 +70,17 @@ class CiscoIOSXRDevice(BaseDevice):
                 logger.debug(
                     "DEBUG: Ignoring neighbour '%s', '%s' in ignored AS list.",
                     neighbour["BGP_NEIGH"],
-                    neighbour["NEIGH_AS"],
+                    as_number,
                 )
                 continue
+
+            addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
+            logger.debug("Found neighbour %s.", str(addr))
 
             is_up = False
             pfxrcd = -1
             state = "Established"
+
             if neighbour["STATE_PFXRCD"].isdigit():
                 is_up = True
                 pfxrcd = neighbour["STATE_PFXRCD"]
@@ -99,7 +100,7 @@ class CiscoIOSXRDevice(BaseDevice):
                     "remote_ip": str(addr),
                     "remote_asn": as_number,
                     "address_family": table,
-                    "ip_version": ipversion,
+                    "ip_version": addr.version,
                     "is_up": is_up,
                     "pfxrcd": pfxrcd,
                     "state": state,
