@@ -68,6 +68,8 @@ class JunOsDevice(BaseDevice):
         results = []
 
         for bgp_peer in data["rpc-reply"]["bgp-information"]["bgp-peer"]:
+            pp.pprint(bgp_peer)
+
             remote_ip: str = bgp_peer["peer-address"]
             if "+" in remote_ip:
                 remote_ip = remote_ip[0 : remote_ip.find("+")]
@@ -101,9 +103,11 @@ class JunOsDevice(BaseDevice):
             else:
                 state = bgp_peer["peer-state"]
 
-            routing_instance = bgp_peer["bgp-rib"]["name"]
+            routing_instance = "default"
+            if "peer-cfg-rti" in bgp_peer and bgp_peer["peer-cfg-rti"]:
+                routing_instance = bgp_peer["peer-cfg-rti"]
 
-            address_family = bgp_peer["bgp-option-information"]["address-families"]
+            address_family = bgp_peer["nlri-type-peer"]
 
             results.append(
                 {
