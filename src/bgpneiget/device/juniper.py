@@ -39,11 +39,11 @@ class JunOsDevice(BaseDevice):
         """
         return "show bgp neighbor | display xml"
 
-    async def process_bgp_neighbours(self, result: list, table: str, prog_args: dict) -> list:
+    async def process_bgp_neighbours(self, result: str, prog_args: dict) -> list:
         """Process the BGP Neigbour output from devices through textFSM.
 
         Args:
-            result (list): Parsed output from network device
+            result (str): XML string from JunOS device
             prog_args (dict): Program arguments, asignore etc.
 
         Returns:
@@ -64,6 +64,8 @@ class JunOsDevice(BaseDevice):
 
         if "bgp-peer" not in data["rpc-reply"]["bgp-information"]:
             return []
+
+        results = {}
 
         for bgp_peer in data["rpc-reply"]["bgp-information"]["bgp-peer"]:
             remote_ip = bgp_peer["peer-address"]
@@ -95,6 +97,6 @@ class JunOsDevice(BaseDevice):
 
         pp.pprint(response)
 
-        result = self.parse_bgp_neighbours(response["all"])
+        result = self.process_bgp_neighbours(response["all"])
 
         return result
