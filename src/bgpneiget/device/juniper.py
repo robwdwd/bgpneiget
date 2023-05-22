@@ -94,7 +94,7 @@ class JunOsDevice(BaseDevice):
                 continue
 
             is_up = False
-
+            pfxrcd = -1
             state = "Established"
 
             if bgp_peer["peer-state"] == "Established":
@@ -107,18 +107,15 @@ class JunOsDevice(BaseDevice):
             # BGP RIB must exist
             if "bgp-rib" in bgp_peer:
                 if isinstance(bgp_peer["bgp-rib"], dict):
-                    family = bgp_peer["bgp-rib"]["name"].rsplit(".")
-                    pp.pprint(family)
+                    paf = self.parse_bgp_rib(bgp_peer["bgp-rib"])
+                        if not paf:
+                            logger.error("Neighbour '%s' has unparsable address family.", str(addr))
 
                 elif isinstance(bgp_peer["bgp-rib"], list):
                     for table in bgp_peer["bgp-rib"]:
-                        pfxrcd = -1
-                        family = bgp_peer["bgp-rib"][table]["name"].rsplit(".")
-                        pp.pprint(family)
-                        try:
-                            address_family = self.AF_MAP[family[0]]
-                        except KeyError:
-                            continue
+                        paf = self.parse_bgp_rib(table)
+                        if not paf:
+                            logger.error("Neighbour '%s' has unparsable address family.", str(addr))
 
             address_family = "ipv4"
             # address_family = bgp_peer["nlri-type-peer"]
@@ -138,6 +135,27 @@ class JunOsDevice(BaseDevice):
             )
 
         return results
+
+    async def parse_bgp_rib(self, rib,):
+        family = rib["name"].rsplit(".")
+        pp.pprint(family)
+        if len(family) == 2:
+            address_family = family[0]
+            routing_instance = "default"
+        elif len(family) == 3:
+            address_family = family[1]
+            routing_instance = family[0]
+        else:
+            return ()
+        
+        try:
+            address_family = self.AF_MAP[address_family]
+        except KeyError:
+            return ()
+        
+        pp.pprint([address_family, routing_instance])
+
+        return (address_family, routing_instance)
 
     async def get_neighbours(self, prog_args: dict) -> dict:
         """Get BGP neighbours from device.
