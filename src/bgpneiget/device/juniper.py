@@ -108,7 +108,7 @@ class JunOsDevice(BaseDevice):
             if "bgp-rib" in bgp_peer:
                 for table in bgp_peer["bgp-rib"]:
                     pfxrcd = -1
-                    family = bgp_peer["bgp-rib"]["name"].rsplit(".")
+                    family = bgp_peer["bgp-rib"][table]["name"].rsplit(".")
                     pp.pprint(family)
                     try:
                         address_family = self.AF_MAP[family[0]]
