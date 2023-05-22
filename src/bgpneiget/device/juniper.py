@@ -56,8 +56,6 @@ class JunOsDevice(BaseDevice):
         except Exception as err:
             raise err
 
-        pp.pprint(data)
-
         if "rpc-reply" not in data:
             return []
 
@@ -109,9 +107,8 @@ class JunOsDevice(BaseDevice):
             # BGP RIB must exist
             if "bgp-rib" in bgp_peer:
                 pfxrcd = -1
-                if routing_instance == "default":
-                    family = bgp_peer["bgp-rib"]["name"].rsplit(".")
-                    pp.pprint(family)
+                family = bgp_peer["bgp-rib"]["name"].rsplit(".")
+                pp.pprint(family)
                 try:
                     address_family = self.AF_MAP[family[0]]
                 except KeyError:
