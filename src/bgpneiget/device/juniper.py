@@ -108,8 +108,8 @@ class JunOsDevice(BaseDevice):
             if "bgp-rib" in bgp_peer:
                 if isinstance(bgp_peer["bgp-rib"], dict):
                     paf = self.parse_bgp_rib(bgp_peer["bgp-rib"])
-                        if not paf:
-                            logger.error("Neighbour '%s' has unparsable address family.", str(addr))
+                    if not paf:
+                        logger.error("Neighbour '%s' has unparsable address family.", str(addr))
 
                 elif isinstance(bgp_peer["bgp-rib"], list):
                     for table in bgp_peer["bgp-rib"]:
@@ -136,7 +136,10 @@ class JunOsDevice(BaseDevice):
 
         return results
 
-    async def parse_bgp_rib(self, rib,):
+    async def parse_bgp_rib(
+        self,
+        rib,
+    ):
         family = rib["name"].rsplit(".")
         pp.pprint(family)
         if len(family) == 2:
@@ -147,12 +150,12 @@ class JunOsDevice(BaseDevice):
             routing_instance = family[0]
         else:
             return ()
-        
+
         try:
             address_family = self.AF_MAP[address_family]
         except KeyError:
             return ()
-        
+
         pp.pprint([address_family, routing_instance])
 
         return (address_family, routing_instance)
