@@ -107,9 +107,9 @@ class JunOsDevice(BaseDevice):
             address_family = 'ipv4'
             if "peer-cfg-rti" in bgp_peer and bgp_peer["peer-cfg-rti"]:
                 routing_instance = bgp_peer["peer-cfg-rti"]
-                address_family = 'vpnv4'
 
-            address_family = bgp_peer["nlri-type-peer"]
+
+           #address_family = bgp_peer["nlri-type-peer"]
 
             results.append(
                 {
