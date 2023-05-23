@@ -23,7 +23,7 @@ logger = logging.getLogger()
 class JunOsDevice(BaseDevice):
     """Juniper JunOS devices."""
 
-    AF_MAP = {"inet": "ipv4", "inet6": "ipv6"}
+    AF_MAP = {"inet": "ipv4", "inet6": "ipv6", 'l3vpn-inet6': 'vpnv6', 'l3vpn': 'vpnv4'}
 
     def get_driver(self) -> Type[AsyncJunosDriver]:
         """Get scrapli driver for this device.
@@ -79,14 +79,17 @@ class JunOsDevice(BaseDevice):
                 "routing_instance": "default",
                 "protocol_instance": "default",
             }
-            pp.pprint(bgp_peer)
+            # pp.pprint(bgp_peer)
 
+
+            # Get remote IP address.
             remote_ip: str = bgp_peer["peer-address"]
             if "+" in remote_ip:
                 remote_ip = remote_ip[0 : remote_ip.find("+")]
             addr = ipaddress.ip_address(remote_ip)
 
             new_neighbour["remote_ip"] = str(addr)
+            new_neighbour["ip_version"] = addr.version
 
             as_number = int(bgp_peer["peer-as"])
 
@@ -106,7 +109,7 @@ class JunOsDevice(BaseDevice):
                 )
                 continue
 
-            new_neighbour["as_number"] = as_number
+            new_neighbour["remote_asn"] = as_number
 
             if bgp_peer["peer-state"] == "Established":
                 new_neighbour["is_up"] = True
@@ -114,57 +117,76 @@ class JunOsDevice(BaseDevice):
             else:
                 new_neighbour["state"] = bgp_peer["peer-state"]
 
-            routing_instance = "default" if bgp_peer["peer-fwd-rti"] == "master" else bgp_peer["peer-fwd-rti"]
+            # Get base routing instance, this can be overwriten by the RIB parse.
+            new_neighbour["routing_instance"] = "default" if bgp_peer["peer-fwd-rti"] == "master" else bgp_peer["peer-fwd-rti"]
+
             address_family = ""
+            if 'bgp-option-information' in bgp_peer and 'address-families' in bgp_peer['bgp-option-information']:
+              pp.pprint(bgp_peer)
+
             # address_family = bgp_peer["nlri-type-peer"]
 
-            # BGP RIB must exist
+            # BGP RIB must exist, check for different address families and
+            # routing instances here.
             if "bgp-rib" in bgp_peer:
                 if isinstance(bgp_peer["bgp-rib"], dict):
-                    (address_family, routing_instance) = await self.parse_bgp_rib(bgp_peer["bgp-rib"])
-                    if not address_family or not routing_instance:
-                        logger.error("Neighbour '%s' has unparsable address family.", str(addr))
-                    else:
-                        new_neighbour["address_family"] = address_family
-                        new_neighbour["routing_instance"] = routing_instance
+                    rib = await self.parse_bgp_rib(bgp_peer["bgp-rib"], str(addr))
+                    if rib['address_family'] != '':
+                        new_neighbour["address_family"] = rib['address_family']
+                        new_neighbour["routing_instance"] = rib['routing_instance']
                         results.append(new_neighbour)
 
                 elif isinstance(bgp_peer["bgp-rib"], list):
                     for table in bgp_peer["bgp-rib"]:
-                        (address_family, routing_instance) = await self.parse_bgp_rib(table)
-                        if not address_family or not routing_instance:
-                            logger.error("Neighbour '%s' has unparsable address family.", str(addr))
-                        else:
+                        rib = await self.parse_bgp_rib(table, str(addr))
+                        if rib['address_family'] != '':
                             new_nei = new_neighbour.copy()
-                            new_nei["address_family"] = address_family
-                            new_nei["routing_instance"] = routing_instance
+                            new_nei["address_family"] = rib['address_family']
+                            new_nei["routing_instance"] = rib['routing_instance']
                             results.append(new_nei)
+
+            else:
+                results.append(new_neighbour)
+
 
         return results
 
     async def parse_bgp_rib(
         self,
         rib,
+        ipaddr,
     ) -> Tuple[str, str]:
+        result = {'address_family': '',
+                  'routing_instance': '',
+                  'pfxrcvd': -1
+                  }
+
+        result['pfxrcvd'] = rib['accepted-prefix-count']
+
         family = rib["name"].rsplit(".")
-        pp.pprint(family)
+        address_family = ''
         if len(family) == 2:
             address_family = family[0]
-            routing_instance = "default"
+            result['routing_instance'] = "default"
         elif len(family) == 3:
             address_family = family[1]
-            routing_instance = family[0]
+            result['routing_instance'] = family[0]
         else:
-            return ()
+            logger.error("Neighbour '%s' has unparsable address family: %s", ipaddr, rib['name'])
+            pp.pprint(result)
+            return result
 
-        try:
-            address_family = self.AF_MAP[address_family]
-        except KeyError:
-            return ()
+        if address_family:
+          try:
+              result['address_family'] = self.AF_MAP[address_family]
+          except KeyError:
+              logger.error("Neighbour '%s' has unparsable address family: %s", ipaddr, address_family)
+              pp.pprint(result)
+              return result
 
-        pp.pprint([address_family, routing_instance])
 
-        return (address_family, routing_instance)
+
+        return result
 
     async def get_neighbours(self, prog_args: dict) -> dict:
         """Get BGP neighbours from device.

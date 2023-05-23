@@ -63,7 +63,7 @@ async def device_worker(name: str, queue: asyncio.Queue, prog_args: dict):
 
         try:
             result = await device.get_neighbours(prog_args)
-            pp.pprint(result)
+            #pp.pprint(result)
 
         except Exception as err:
             logger.exception("%s: Device failed: %s", device.hostname, err)
