@@ -7,7 +7,7 @@
 import ipaddress
 import logging
 import pprint
-from typing import Type
+from typing import Tuple, Type
 
 import xmltodict
 from scrapli.driver.core import AsyncJunosDriver
@@ -68,12 +68,25 @@ class JunOsDevice(BaseDevice):
         results = []
 
         for bgp_peer in data["rpc-reply"]["bgp-information"]["bgp-peer"]:
+            new_neighbour = {
+                "remote_ip": "",
+                "remote_asn": -1,
+                "address_family": "",
+                "ip_version": -1,
+                "is_up": False,
+                "pfxrcd": -1,
+                "state": "",
+                "routing_instance": "default",
+                "protocol_instance": "default",
+            }
             pp.pprint(bgp_peer)
 
             remote_ip: str = bgp_peer["peer-address"]
             if "+" in remote_ip:
                 remote_ip = remote_ip[0 : remote_ip.find("+")]
             addr = ipaddress.ip_address(remote_ip)
+
+            new_neighbour["remote_ip"] = str(addr)
 
             as_number = int(bgp_peer["peer-as"])
 
@@ -93,53 +106,46 @@ class JunOsDevice(BaseDevice):
                 )
                 continue
 
-            is_up = False
-            pfxrcd = -1
-            state = "Established"
+            new_neighbour["as_number"] = as_number
 
             if bgp_peer["peer-state"] == "Established":
-                is_up = True
+                new_neighbour["is_up"] = True
+                new_neighbour["state"] = "Established"
             else:
-                state = bgp_peer["peer-state"]
+                new_neighbour["state"] = bgp_peer["peer-state"]
 
             routing_instance = "default" if bgp_peer["peer-fwd-rti"] == "master" else bgp_peer["peer-fwd-rti"]
+            address_family = ""
+            # address_family = bgp_peer["nlri-type-peer"]
 
             # BGP RIB must exist
             if "bgp-rib" in bgp_peer:
                 if isinstance(bgp_peer["bgp-rib"], dict):
-                    paf = self.parse_bgp_rib(bgp_peer["bgp-rib"])
-                    if not paf:
+                    (address_family, routing_instance) = await self.parse_bgp_rib(bgp_peer["bgp-rib"])
+                    if not address_family or not routing_instance:
                         logger.error("Neighbour '%s' has unparsable address family.", str(addr))
+                    else:
+                        new_neighbour["address_family"] = address_family
+                        new_neighbour["routing_instance"] = routing_instance
+                        results.append(new_neighbour)
 
                 elif isinstance(bgp_peer["bgp-rib"], list):
                     for table in bgp_peer["bgp-rib"]:
-                        paf = self.parse_bgp_rib(table)
-                        if not paf:
+                        (address_family, routing_instance) = await self.parse_bgp_rib(table)
+                        if not address_family or not routing_instance:
                             logger.error("Neighbour '%s' has unparsable address family.", str(addr))
-
-            address_family = "ipv4"
-            # address_family = bgp_peer["nlri-type-peer"]
-
-            results.append(
-                {
-                    "remote_ip": str(addr),
-                    "remote_asn": as_number,
-                    "address_family": address_family,
-                    "ip_version": addr.version,
-                    "is_up": is_up,
-                    "pfxrcd": pfxrcd,
-                    "state": state,
-                    "routing_instance": routing_instance,
-                    "protocol_instance": "default",
-                }
-            )
+                        else:
+                            new_nei = new_neighbour.copy()
+                            new_nei["address_family"] = address_family
+                            new_nei["routing_instance"] = routing_instance
+                            results.append(new_nei)
 
         return results
 
     async def parse_bgp_rib(
         self,
         rib,
-    ):
+    ) -> Tuple[str, str]:
         family = rib["name"].rsplit(".")
         pp.pprint(family)
         if len(family) == 2:
