@@ -30,6 +30,8 @@ class JunOsDevice(BaseDevice):
         "l3vpn": "vpnv4",
         "inet-unicast": "ipv4",
         "inet6-unicast": "ipv6",
+        "inet6-labeled-unicast": "ipv6",
+        "inet-flow": "flowv4",
     }
 
     def get_driver(self) -> Type[AsyncJunosDriver]:
@@ -40,7 +42,7 @@ class JunOsDevice(BaseDevice):
         """
         return AsyncJunosDriver
 
-    def get_bgp_cmd_global(self, address_family: str = "ipv4") -> str:
+    def get_bgp_cmd_global(self, table: str = "ipv4") -> str:
         """Get the BGP summary show command for this device.
 
         Returns:
