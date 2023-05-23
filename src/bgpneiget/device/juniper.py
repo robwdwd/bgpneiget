@@ -89,6 +89,7 @@ class JunOsDevice(BaseDevice):
                 if rib["address_family"] != "":
                     new_neighbour["address_family"] = rib["address_family"]
                     new_neighbour["routing_instance"] = rib["routing_instance"]
+                    new_neighbour["pfxrcd"] = rib["pfxrcd"]
                     results.append(new_neighbour)
 
             elif isinstance(bgp_peer["bgp-rib"], list):
@@ -98,6 +99,7 @@ class JunOsDevice(BaseDevice):
                         new_nei = new_neighbour.copy()
                         new_nei["address_family"] = rib["address_family"]
                         new_nei["routing_instance"] = rib["routing_instance"]
+                        new_nei["pfxrcd"] = rib["pfxrcd"]
                         results.append(new_nei)
         else:
             return [new_neighbour]
@@ -220,9 +222,9 @@ class JunOsDevice(BaseDevice):
         Returns:
             dict: _description_
         """
-        result = {"address_family": "", "routing_instance": "", "pfxrcvd": -1}
+        result = {"address_family": "", "routing_instance": "", "pfxrcd": -1}
 
-        result["pfxrcvd"] = rib["accepted-prefix-count"]
+        result["pfxrcd"] = rib["accepted-prefix-count"]
 
         family = rib["name"].rsplit(".")
         address_family = ""
