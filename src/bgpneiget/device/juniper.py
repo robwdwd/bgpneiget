@@ -23,7 +23,7 @@ logger = logging.getLogger()
 class JunOsDevice(BaseDevice):
     """Juniper JunOS devices."""
 
-    AF_MAP = {"inet": "ipv4", "inet6": "ipv6", "l3vpn-inet6": "vpnv6", "l3vpn": "vpnv4"}
+    AF_MAP = {"inet": "ipv4", "inet6": "ipv6", "l3vpn-inet6": "vpnv6", "l3vpn": "vpnv4", 'inet-unicast': 'ipv4', 'inet6-unicast': 'ipv6'}
 
     def get_driver(self) -> Type[AsyncJunosDriver]:
         """Get scrapli driver for this device.
@@ -93,7 +93,7 @@ class JunOsDevice(BaseDevice):
                     results.append(new_neighbour)
                 except KeyError:
                     logger.error(
-                        "Neighbour '%s' has unparsable address family: %s", new_neighbour["remote_ip"], address_family
+                        "Down Neighbour '%s' has unparsable address family: %s", new_neighbour["remote_ip"], address_family
                     )
         else:
             return [new_neighbour]
