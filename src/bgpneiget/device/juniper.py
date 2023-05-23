@@ -23,7 +23,14 @@ logger = logging.getLogger()
 class JunOsDevice(BaseDevice):
     """Juniper JunOS devices."""
 
-    AF_MAP = {"inet": "ipv4", "inet6": "ipv6", "l3vpn-inet6": "vpnv6", "l3vpn": "vpnv4", 'inet-unicast': 'ipv4', 'inet6-unicast': 'ipv6'}
+    AF_MAP = {
+        "inet": "ipv4",
+        "inet6": "ipv6",
+        "l3vpn-inet6": "vpnv6",
+        "l3vpn": "vpnv4",
+        "inet-unicast": "ipv4",
+        "inet6-unicast": "ipv6",
+    }
 
     def get_driver(self) -> Type[AsyncJunosDriver]:
         """Get scrapli driver for this device.
@@ -42,6 +49,11 @@ class JunOsDevice(BaseDevice):
         return "show bgp neighbor | display xml"
 
     def get_default_neighbour_dict(self) -> dict:
+        """Get default new neighbour structure.
+
+        Returns:
+            dict: New neighbour
+        """
         return {
             "remote_ip": "",
             "remote_asn": -1,
@@ -55,6 +67,15 @@ class JunOsDevice(BaseDevice):
         }
 
     def process_up_neighbour(self, bgp_peer: dict, new_neighbour: dict) -> list:
+        """Process establised BGP neighbour.
+
+        Args:
+            bgp_peer (dict): BGP Peer data
+            new_neighbour (dict): Semi-parsed BGP neighbour
+
+        Returns:
+            list: List of new neighbours found
+        """
         results = []
 
         new_neighbour["is_up"] = True
@@ -82,18 +103,30 @@ class JunOsDevice(BaseDevice):
         return results
 
     def process_down_neighbour(self, bgp_peer: dict, new_neighbour: dict) -> list:
+        """Process a down BGP neighbour.
+
+        Args:
+            bgp_peer (dict): BGP Peer data
+            new_neighbour (dict): Semi-parsed new neighbour structure
+
+        Returns:
+            list: List of new neighbours found
+        """
         results = []
         # Check if address family can be found in bgp-option-information
         # as a starting base.
         if "bgp-option-information" in bgp_peer and "address-families" in bgp_peer["bgp-option-information"]:
-            if isinstance(bgp_peer["bgp-option-information"]["address-families"], str):
+            address_families = bgp_peer["bgp-option-information"]["address-families"].split()
+            for address_family in address_families:
+                new_nei = new_neighbour.copy()
                 try:
-                    address_family = bgp_peer["bgp-option-information"]["address-families"]
-                    new_neighbour["address_family"] = self.AF_MAP[address_family]
-                    results.append(new_neighbour)
+                    new_nei["address_family"] = self.AF_MAP[address_family]
+                    results.append(new_nei)
                 except KeyError:
-                    logger.error(
-                        "Down Neighbour '%s' has unparsable address family: %s", new_neighbour["remote_ip"], address_family
+                    logger.info(
+                        "Down Neighbour '%s' has unparsable address family: %s",
+                        new_neighbour["remote_ip"],
+                        address_family,
                     )
         else:
             return [new_neighbour]
@@ -173,9 +206,18 @@ class JunOsDevice(BaseDevice):
 
     def parse_bgp_rib(
         self,
-        rib,
-        ipaddr,
+        rib: dict,
+        ipaddr: str,
     ) -> dict:
+        """Parse BGP RIB data for establised BGP Neighbour.
+
+        Args:
+            rib (dict): Rib entry
+            ipaddr (str): Neighbour remote IP address
+
+        Returns:
+            dict: _description_
+        """
         result = {"address_family": "", "routing_instance": "", "pfxrcvd": -1}
 
         result["pfxrcvd"] = rib["accepted-prefix-count"]
@@ -189,16 +231,14 @@ class JunOsDevice(BaseDevice):
             address_family = family[1]
             result["routing_instance"] = family[0]
         else:
-            logger.error("Neighbour '%s' has unparsable address family: %s", ipaddr, rib["name"])
-            pp.pprint(result)
+            logger.info("Neighbour '%s' has unparsable address family: %s", ipaddr, rib["name"])
             return result
 
         if address_family:
             try:
                 result["address_family"] = self.AF_MAP[address_family]
             except KeyError:
-                logger.error("Neighbour '%s' has unparsable address family: %s", ipaddr, address_family)
-                pp.pprint(result)
+                logger.info("Neighbour '%s' has unparsable address family: %s", ipaddr, address_family)
                 return result
 
         return result
