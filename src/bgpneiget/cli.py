@@ -16,6 +16,7 @@ import pprint
 import re
 from json import JSONDecodeError
 
+import aiosqlite
 import click
 
 from bgpneiget.device.base import BaseDevice
@@ -58,11 +59,23 @@ async def device_worker(name: str, queue: asyncio.Queue, prog_args: dict):
         name (str): Name for the worker.
         queue (asyncio.Queue): AsyncIO queue
     """
+    db = await aiosqlite.connect(prog_args["db_file"])
     while True:
         device: BaseDevice = await queue.get()
 
         try:
             result = await device.get_neighbours(prog_args)
+
+            #   { 'address_family': 'ipv4',
+            #     'ip_version': 4,
+            #     'is_up': True,
+            #     'pfxrcd': '5',
+            #     'protocol_instance': 'default',
+            #     'remote_asn': 15404,
+            #     'remote_ip': '217.111.187.250',
+            #     'routing_instance': 'default',
+            #     'state': 'Established'},
+
             pp.pprint(result)
 
         except Exception as err:
@@ -81,6 +94,23 @@ async def do_devices(devices: dict, prog_args: dict):
     supported_os = ["IOS", "IOS-XR", "IOS-XE", "JunOS", "EOS", "NX-OS"]
 
     queue = asyncio.Queue()
+
+    #   { 'address_family': 'ipv4',
+    #     'ip_version': 4,
+    #     'is_up': True,
+    #     'pfxrcd': '5',
+    #     'protocol_instance': 'default',
+    #     'remote_asn': 15404,
+    #     'remote_ip': '217.111.187.250',
+    #     'routing_instance': 'default',
+    #     'state': 'Established'},
+
+    db_con = await aiosqlite.connect(prog_args["db_file"])
+    db_cursor = await db_con.cursor()
+    await db_cursor.execute("DROP TABLE IF EXISTS neighbours")
+    await db_cursor.execute(
+        "CREATE TABLE neighbours(hostname, remote_ip, remote_asn, ip_version, address_family, is_up, pfxrcd, state, routing_instance, protocol_instance)"
+    )
 
     for device in devices.values():
         if device["os"] in supported_os:
@@ -203,6 +233,7 @@ def cli(**cli_args):
     prog_args = {
         "username": cfg["username"],
         "password": cfg["password"],
+        "db_file": cfg["db_file"],
         "except_as": cli_args["except_as"],
         "ignore_as": cli_args["ignore_as"],
         "table": cli_args["table"],

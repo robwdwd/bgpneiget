@@ -60,7 +60,7 @@ class CiscoIOSXRDevice(BaseDevice):
 
             if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
                 logger.debug(
-                    "DEBUG: Ignoring neighbour '%s', '%s' not in except AS list.",
+                    "Ignoring neighbour '%s', '%s' not in except AS list.",
                     neighbour["BGP_NEIGH"],
                     as_number,
                 )
@@ -68,7 +68,7 @@ class CiscoIOSXRDevice(BaseDevice):
 
             if prog_args["ignore_as"] and as_number in prog_args["ignore_as"]:
                 logger.debug(
-                    "DEBUG: Ignoring neighbour '%s', '%s' in ignored AS list.",
+                    "Ignoring neighbour '%s', '%s' in ignored AS list.",
                     neighbour["BGP_NEIGH"],
                     as_number,
                 )
@@ -97,6 +97,7 @@ class CiscoIOSXRDevice(BaseDevice):
 
             results.append(
                 {
+                    "hostname": self.hostname,
                     "remote_ip": str(addr),
                     "remote_asn": as_number,
                     "address_family": table,

@@ -57,6 +57,7 @@ class JunOsDevice(BaseDevice):
             dict: New neighbour
         """
         return {
+            "hostname": self.hostname,
             "remote_ip": "",
             "remote_asn": -1,
             "address_family": "",
