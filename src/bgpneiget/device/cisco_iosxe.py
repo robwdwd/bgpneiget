@@ -65,18 +65,21 @@ class CiscoIOSDevice(BaseDevice):
         for neighbour in result:
             addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
 
-            logger.debug("Found neighbour %s.", neighbour)
+            logger.debug("[%s] Found neighbour %s.", self.hostname, neighbour)
 
             ipversion = addr.version
             as_number = int(neighbour["NEIGH_AS"])
 
             if not neighbour["ADDRESS_FAMILY"]:
-                logger.debug("DEBUG: Ignoring neighbour '%s' with no address family.", neighbour["BGP_NEIGH"])
+                logger.debug(
+                    "[%s] Ignoring neighbour '%s' with no address family.", self.hostname, neighbour["BGP_NEIGH"]
+                )
                 continue
 
             if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
                 logger.debug(
-                    "DEBUG: Ignoring neighbour '%s', '%s' not in except AS list.",
+                    "[%s] Ignoring neighbour '%s', '%s' not in except AS list.",
+                    self.hostname,
                     neighbour["BGP_NEIGH"],
                     neighbour["NEIGH_AS"],
                 )
@@ -84,7 +87,8 @@ class CiscoIOSDevice(BaseDevice):
 
             if prog_args["ignore_as"] and as_number in prog_args["ignore_as"]:
                 logger.debug(
-                    "DEBUG: Ignoring neighbour '%s', '%s' in ignored AS list.",
+                    "[%s] Ignoring neighbour '%s', '%s' in ignored AS list.",
+                    self.hostname,
                     neighbour["BGP_NEIGH"],
                     neighbour["NEIGH_AS"],
                 )
@@ -92,19 +96,25 @@ class CiscoIOSDevice(BaseDevice):
 
             if neighbour["ADDRESS_FAMILY"] in ("IPv4 Unicast", "IPv6 Unicast"):
                 logger.debug(
-                    "DEBUG: Ignoring vpn neighbour '%s' with IPv4 or IPv6 address family.", neighbour["BGP_NEIGH"]
+                    "[%s] Ignoring vpn neighbour '%s' with IPv4 or IPv6 address family.",
+                    self.hostname,
+                    neighbour["BGP_NEIGH"],
                 )
                 continue
 
             if neighbour["ADDRESS_FAMILY"] == "VPNv4 Unicast" and table == "vpnv6":
                 logger.debug(
-                    "DEBUG: Ignoring vpnv4 neighbour '%s' VPNv6 address family requested.", neighbour["BGP_NEIGH"]
+                    "[%s] Ignoring vpnv4 neighbour '%s' VPNv6 address family requested.",
+                    self.hostname,
+                    neighbour["BGP_NEIGH"],
                 )
                 continue
 
             if neighbour["ADDRESS_FAMILY"] == "VPNv6 Unicast" and table == "vpnv4":
                 logger.debug(
-                    "DEBUG: Ignoring vpnv6 neighbour '%s' VPNv4 address family requested.", neighbour["BGP_NEIGH"]
+                    "[%s] Ignoring vpnv6 neighbour '%s' VPNv4 address family requested.",
+                    self.hostname,
+                    neighbour["BGP_NEIGH"],
                 )
                 continue
 
@@ -114,7 +124,8 @@ class CiscoIOSDevice(BaseDevice):
 
             if routing_instance != "default" and not prog_args["with_vrfs"]:
                 logger.debug(
-                    "Ignoring neighbour '%s' with routing instance '%s' --with-vrfs not set.",
+                    "[%s] Ignoring neighbour '%s' with routing instance '%s' --with-vrfs not set.",
+                    self.hostname,
                     neighbour["BGP_NEIGH"],
                     routing_instance,
                 )
@@ -161,14 +172,15 @@ class CiscoIOSDevice(BaseDevice):
         for neighbour in result:
             addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
 
-            logger.debug("Found neighbour %s.", neighbour)
+            logger.debug("[%s] Found neighbour %s.", self.hostname, neighbour)
 
             ipversion = addr.version
             as_number = int(neighbour["NEIGH_AS"])
 
             if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
                 logger.debug(
-                    "DEBUG: Ignoring neighbour '%s', '%s' not in except AS list.",
+                    "[%s] Ignoring neighbour '%s', '%s' not in except AS list.",
+                    self.hostname,
                     neighbour["BGP_NEIGH"],
                     neighbour["NEIGH_AS"],
                 )
@@ -176,7 +188,8 @@ class CiscoIOSDevice(BaseDevice):
 
             if prog_args["ignore_as"] and as_number in prog_args["ignore_as"]:
                 logger.debug(
-                    "DEBUG: Ignoring neighbour '%s', '%s' in ignored AS list.",
+                    "[%s] Ignoring neighbour '%s', '%s' in ignored AS list.",
+                    self.hostname,
                     neighbour["BGP_NEIGH"],
                     neighbour["NEIGH_AS"],
                 )

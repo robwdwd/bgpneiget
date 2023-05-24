@@ -59,7 +59,8 @@ class CiscoIOSXRDevice(BaseDevice):
 
             if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
                 logger.debug(
-                    "Ignoring neighbour '%s', '%s' not in except AS list.",
+                    "[%s] Ignoring neighbour '%s', '%s' not in except AS list.",
+                    self.hostname,
                     neighbour["BGP_NEIGH"],
                     as_number,
                 )
@@ -67,7 +68,8 @@ class CiscoIOSXRDevice(BaseDevice):
 
             if prog_args["ignore_as"] and as_number in prog_args["ignore_as"]:
                 logger.debug(
-                    "Ignoring neighbour '%s', '%s' in ignored AS list.",
+                    "[%s] Ignoring neighbour '%s', '%s' in ignored AS list.",
+                    self.hostname,
                     neighbour["BGP_NEIGH"],
                     as_number,
                 )
@@ -79,14 +81,15 @@ class CiscoIOSXRDevice(BaseDevice):
 
             if routing_instance != "default" and not prog_args["with_vrfs"]:
                 logger.debug(
-                    "Ignoring neighbour '%s' with routing instance '%s' --with-vrfs not set.",
+                    "[%s] Ignoring neighbour '%s' with routing instance '%s' --with-vrfs not set.",
+                    self.hostname,
                     neighbour["BGP_NEIGH"],
                     routing_instance,
                 )
                 continue
 
             addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
-            logger.debug("Found neighbour %s.", str(addr))
+            logger.debug("[%s] Found neighbour %s.", self.hostname, str(addr))
 
             is_up = False
             pfxrcd = -1

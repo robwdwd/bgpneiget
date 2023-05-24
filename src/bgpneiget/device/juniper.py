@@ -130,7 +130,8 @@ class JunOsDevice(BaseDevice):
                     results.append(new_nei)
                 except KeyError:
                     logger.info(
-                        "Down Neighbour '%s' has unparsable address family: %s",
+                        "[%s] Down Neighbour '%s' has unparsable address family: %s",
+                        self.hostname,
                         new_neighbour["remote_ip"],
                         address_family,
                     )
@@ -175,7 +176,8 @@ class JunOsDevice(BaseDevice):
 
             if prog_args["except_as"] and (remote_asn not in prog_args["except_as"]):
                 logger.debug(
-                    "Ignoring neighbour '%s', '%s' not in except AS list.",
+                    "[%s] Ignoring neighbour '%s', '%s' not in except AS list.",
+                    self.hostname,
                     remote_ip,
                     remote_asn,
                 )
@@ -183,7 +185,8 @@ class JunOsDevice(BaseDevice):
 
             if prog_args["ignore_as"] and remote_asn in prog_args["ignore_as"]:
                 logger.debug(
-                    "Ignoring neighbour '%s', '%s' in ignored AS list.",
+                    "[%s] Ignoring neighbour '%s', '%s' in ignored AS list.",
+                    self.hostname,
                     remote_ip,
                     remote_asn,
                 )
@@ -224,7 +227,8 @@ class JunOsDevice(BaseDevice):
         for neighbour in nei_results:
             if neighbour["address_family"] not in prog_args["table"]:
                 logger.debug(
-                    "Ignoring neighbour '%s' with unrequested address family '%s'.",
+                    "[%s] Ignoring neighbour '%s' with unrequested address family '%s'.",
+                    self.hostname,
                     neighbour["remote_ip"],
                     neighbour["address_family"],
                 )
@@ -232,7 +236,8 @@ class JunOsDevice(BaseDevice):
 
             if neighbour["routing_instance"] != "default" and not prog_args["with_vrfs"]:
                 logger.debug(
-                    "Ignoring neighbour '%s' with routing instance '%s' --with-vrfs not set.",
+                    "[%s] Ignoring neighbour '%s' with routing instance '%s' --with-vrfs not set.",
+                    self.hostname,
                     neighbour["remote_ip"],
                     neighbour["routing_instance"],
                 )
@@ -269,14 +274,16 @@ class JunOsDevice(BaseDevice):
             address_family = family[1]
             result["routing_instance"] = family[0]
         else:
-            logger.info("Neighbour '%s' has unparsable address family: %s", ipaddr, rib["name"])
+            logger.info("[%s] Neighbour '%s' has unparsable address family: %s", self.hostname, ipaddr, rib["name"])
             return result
 
         if address_family:
             try:
                 result["address_family"] = self.AF_MAP[address_family]
             except KeyError:
-                logger.info("Neighbour '%s' has unparsable address family: %s", ipaddr, address_family)
+                logger.info(
+                    "[%s] Neighbour '%s' has unparsable address family: %s", self.hostname, ipaddr, address_family
+                )
                 return result
 
         return result
