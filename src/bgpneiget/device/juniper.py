@@ -70,7 +70,7 @@ class JunOsDevice(BaseDevice):
             "protocol_instance": "default",
         }
 
-    def process_up_neighbour(self, bgp_peer: dict, new_neighbour: dict) -> list:
+    def process_up_neighbour(self, bgp_peer: dict, new_neighbour: dict, prog_args: dict) -> list:
         """Process establised BGP neighbour.
 
         Args:
@@ -104,11 +104,11 @@ class JunOsDevice(BaseDevice):
                         new_nei["pfxrcd"] = rib["pfxrcd"]
                         results.append(new_nei)
         else:
-            return [new_neighbour]
+            results.append(new_neighbour)
 
-        return results
+        return self.filter_neighbours(results, prog_args)
 
-    def process_down_neighbour(self, bgp_peer: dict, new_neighbour: dict) -> list:
+    def process_down_neighbour(self, bgp_peer: dict, new_neighbour: dict, prog_args: dict) -> list:
         """Process a down BGP neighbour.
 
         Args:
@@ -135,9 +135,9 @@ class JunOsDevice(BaseDevice):
                         address_family,
                     )
         else:
-            return [new_neighbour]
+            results.append(new_neighbour)
 
-        return results
+        return self.filter_neighbours(results, prog_args)
 
     async def process_bgp_neighbours(self, result: str, prog_args: dict) -> list:
         """Process the BGP Neigbour output from devices through textFSM.
@@ -175,7 +175,7 @@ class JunOsDevice(BaseDevice):
 
             if prog_args["except_as"] and (remote_asn not in prog_args["except_as"]):
                 logger.debug(
-                    "DEBUG: Ignoring neighbour '%s', '%s' not in except AS list.",
+                    "Ignoring neighbour '%s', '%s' not in except AS list.",
                     remote_ip,
                     remote_asn,
                 )
@@ -183,7 +183,7 @@ class JunOsDevice(BaseDevice):
 
             if prog_args["ignore_as"] and remote_asn in prog_args["ignore_as"]:
                 logger.debug(
-                    "DEBUG: Ignoring neighbour '%s', '%s' in ignored AS list.",
+                    "Ignoring neighbour '%s', '%s' in ignored AS list.",
                     remote_ip,
                     remote_asn,
                 )
@@ -202,13 +202,35 @@ class JunOsDevice(BaseDevice):
             )
 
             if bgp_peer["peer-state"] == "Established":
-                nei_results = self.process_up_neighbour(bgp_peer, new_neighbour)
+                nei_results = self.process_up_neighbour(bgp_peer, new_neighbour, prog_args)
                 results = results + nei_results
             else:
-                nei_results = self.process_down_neighbour(bgp_peer, new_neighbour)
+                nei_results = self.process_down_neighbour(bgp_peer, new_neighbour, prog_args)
                 results = results + nei_results
 
         return results
+
+    def filter_neighbours(self, nei_results: list, prog_args: dict) -> list:
+        """Filter found neighbours based on cli options.
+
+        Args:
+            nei_results (list): List of found neighbours
+            prog_args (dict): Program arguments
+
+        Returns:
+            list: Filtered neighbours
+        """
+        filtered_results = []
+        for neighbour in nei_results:
+            if neighbour["address_family"] not in prog_args["table"]:
+                continue
+
+            if neighbour["routing_instance"] != "default" and not prog_args["with_vrfs"]:
+                continue
+
+            filtered_results.append(neighbour)
+
+        return filtered_results
 
     def parse_bgp_rib(
         self,
