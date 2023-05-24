@@ -4,6 +4,7 @@
 # "BSD 2-Clause License". Please see the LICENSE file that should
 # have been included as part of this distribution.
 #
+"""Cisco IOS-XE class."""
 import asyncio
 import ipaddress
 import logging
@@ -19,6 +20,7 @@ from bgpneiget.runcmds import get_output
 
 pp = pprint.PrettyPrinter(indent=2, width=120)
 logger = logging.getLogger()
+
 
 class CiscoIOSDevice(BaseDevice):
     """Cisco IOS and IOS-XE devices."""
@@ -59,19 +61,8 @@ class CiscoIOSDevice(BaseDevice):
         Returns:
             list: BGP Neighbours
         """
-
-        #   { 'ADDRESS_FAMILY': 'IPv4 Unicast',
-        #     'BGP_NEIGH': '212.74.94.84',
-        #     'NEIGH_AS': '8220',
-        #     'PREFIXES': '32',
-        #     'STATE': 'Established',
-        #     'VRF': 'remote'},
-
-        pp.pprint(table)
-
         results = []
         for neighbour in result:
-            pp.pprint(neighbour)
             addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
 
             logger.debug("Found neighbour %s.", neighbour)
@@ -158,16 +149,8 @@ class CiscoIOSDevice(BaseDevice):
         Returns:
             list: BGP Neighbours
         """
-
-        #   { 'BGP_INSTANCE': 'default',
-        #     'BGP_NEIGH': '100.65.5.175',
-        #     'NEIGH_AS': '65505',
-        #     'STATE_PFXRCD': '3',
-        #     'VRF': 'VRF-IPC103293-1-00005'},
-
         results = []
         for neighbour in result:
-            pp.pprint(neighbour)
             addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
 
             logger.debug("Found neighbour %s.", neighbour)
@@ -255,7 +238,6 @@ class CiscoIOSDevice(BaseDevice):
             commands[table] = cmd
             reverse_commands[cmd] = table
 
-        pp.pprint(commands)
         response = await get_output(self, commands, prog_args["username"], prog_args["password"])
 
         loop = asyncio.get_running_loop()

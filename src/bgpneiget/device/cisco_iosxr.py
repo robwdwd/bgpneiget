@@ -4,6 +4,7 @@
 # "BSD 2-Clause License". Please see the LICENSE file that should
 # have been included as part of this distribution.
 #
+"""Cisco IOS-XR class."""
 import asyncio
 import ipaddress
 import logging
@@ -54,8 +55,6 @@ class CiscoIOSXRDevice(BaseDevice):
         """
         results = []
         for neighbour in result:
-            pp.pprint(neighbour)
-
             as_number = int(neighbour["NEIGH_AS"])
 
             if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
@@ -150,7 +149,6 @@ class CiscoIOSXRDevice(BaseDevice):
             commands[table] = cmd
             reverse_commands[cmd] = table
 
-        pp.pprint(commands)
         response = await get_output(self, commands, prog_args["username"], prog_args["password"])
 
         loop = asyncio.get_running_loop()

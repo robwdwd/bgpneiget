@@ -4,10 +4,11 @@
 # "BSD 2-Clause License". Please see the LICENSE file that should
 # have been included as part of this distribution.
 #
+"""Juniper device class."""
 import ipaddress
 import logging
 import pprint
-from typing import Tuple, Type
+from typing import Type
 
 import xmltodict
 from scrapli.driver.core import AsyncJunosDriver
@@ -248,7 +249,7 @@ class JunOsDevice(BaseDevice):
 
         return result
 
-    async def get_neighbours(self, prog_args: dict) -> dict:
+    async def get_neighbours(self, prog_args: dict) -> list:
         """Get BGP neighbours from device.
 
         Args:
@@ -261,7 +262,6 @@ class JunOsDevice(BaseDevice):
 
         commands["all"] = self.get_bgp_cmd_global()
 
-        pp.pprint(list(commands.values()))
         response = await get_output(self, commands, prog_args["username"], prog_args["password"])
 
         result = []
