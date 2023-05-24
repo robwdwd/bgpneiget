@@ -52,36 +52,29 @@ def filter_ri(neighbours, filter_re):
     return results
 
 
-async def device_worker(name: str, queue: asyncio.Queue, prog_args: dict):
+async def device_worker(name: str, queue: asyncio.Queue, db_con: aiosqlite.Connection, db_cursor: aiosqlite.Cursor, db_lock: asyncio.Lock, prog_args: dict):
     """Device worker coroutine, reads from the queue until empty.
 
     Args:
         name (str): Name for the worker.
         queue (asyncio.Queue): AsyncIO queue
     """
-    db = await aiosqlite.connect(prog_args["db_file"])
     while True:
         device: BaseDevice = await queue.get()
 
         try:
             result = await device.get_neighbours(prog_args)
 
-            #   { 'address_family': 'ipv4',
-            #     'ip_version': 4,
-            #     'is_up': True,
-            #     'pfxrcd': '5',
-            #     'protocol_instance': 'default',
-            #     'remote_asn': 15404,
-            #     'remote_ip': '217.111.187.250',
-            #     'routing_instance': 'default',
-            #     'state': 'Established'},
-
-            pp.pprint(result)
+            async with db_lock:
+              await db_cursor.executemany("INSERT INTO neighbours VALUES(:hostname,:address_family,:ip_version,:is_up,:pfxrcd,:protocol_instance,:remote_asn,:remote_ip,:routing_instance,:state);", result)
+              await db_con.commit()
 
         except Exception as err:
             logger.exception("%s: Device failed: %s", device.hostname, err)
 
         queue.task_done()
+
+        
 
 
 async def do_devices(devices: dict, prog_args: dict):
@@ -94,16 +87,7 @@ async def do_devices(devices: dict, prog_args: dict):
     supported_os = ["IOS", "IOS-XR", "IOS-XE", "JunOS", "EOS", "NX-OS"]
 
     queue = asyncio.Queue()
-
-    #   { 'address_family': 'ipv4',
-    #     'ip_version': 4,
-    #     'is_up': True,
-    #     'pfxrcd': '5',
-    #     'protocol_instance': 'default',
-    #     'remote_asn': 15404,
-    #     'remote_ip': '217.111.187.250',
-    #     'routing_instance': 'default',
-    #     'state': 'Established'},
+    db_lock = asyncio.Lock()
 
     db_con = await aiosqlite.connect(prog_args["db_file"])
     db_cursor = await db_con.cursor()
@@ -122,7 +106,7 @@ async def do_devices(devices: dict, prog_args: dict):
     # Create three worker tasks to process the queue concurrently.
     tasks = []
     for i in range(3):
-        task = asyncio.create_task(device_worker(f"worker-{i}", queue, prog_args))
+        task = asyncio.create_task(device_worker(f"worker-{i}", queue, db_con, db_cursor, db_lock, prog_args))
         tasks.append(task)
 
     # Wait until the queue is fully processed.
@@ -132,6 +116,8 @@ async def do_devices(devices: dict, prog_args: dict):
     for task in tasks:
         task.cancel()
 
+    await db_cursor.close()
+    await db_con.close()
 
 @click.command()
 @click.option(

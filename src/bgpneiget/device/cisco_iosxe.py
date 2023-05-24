@@ -202,6 +202,7 @@ class CiscoIOSDevice(BaseDevice):
 
             results.append(
                 {
+                    "hostname": self.hostname,
                     "remote_ip": str(addr),
                     "remote_asn": as_number,
                     "address_family": table,
