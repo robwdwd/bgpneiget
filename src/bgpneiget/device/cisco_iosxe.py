@@ -108,6 +108,18 @@ class CiscoIOSDevice(BaseDevice):
                 )
                 continue
 
+            routing_instance = "default"
+            if neighbour["VRF"] != "remote":
+                routing_instance = neighbour["VRF"]
+
+            if routing_instance != "default" and not prog_args["with_vrfs"]:
+                logger.debug(
+                    "Ignoring neighbour '%s' with routing instance '%s' --with-vrfs not set.",
+                    neighbour["BGP_NEIGH"],
+                    routing_instance,
+                )
+                continue
+
             is_up = False
             pfxrcd = -1
             state = "Established"
@@ -116,13 +128,6 @@ class CiscoIOSDevice(BaseDevice):
                 pfxrcd = neighbour["PREFIXES"]
             else:
                 state = neighbour["STATE"]
-
-            routing_instance = "default"
-            if neighbour["VRF"] != "remote":
-                routing_instance = neighbour["VRF"]
-
-            if routing_instance != "default" and not prog_args["with_vrfs"]:
-                continue
 
             results.append(
                 {

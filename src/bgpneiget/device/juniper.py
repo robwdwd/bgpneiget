@@ -223,9 +223,19 @@ class JunOsDevice(BaseDevice):
         filtered_results = []
         for neighbour in nei_results:
             if neighbour["address_family"] not in prog_args["table"]:
+                logger.debug(
+                    "Ignoring neighbour '%s' with unrequested address family '%s'.",
+                    neighbour["remote_ip"],
+                    neighbour["address_family"],
+                )
                 continue
 
             if neighbour["routing_instance"] != "default" and not prog_args["with_vrfs"]:
+                logger.debug(
+                    "Ignoring neighbour '%s' with routing instance '%s' --with-vrfs not set.",
+                    neighbour["remote_ip"],
+                    neighbour["routing_instance"],
+                )
                 continue
 
             filtered_results.append(neighbour)

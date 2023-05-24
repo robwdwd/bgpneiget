@@ -73,6 +73,18 @@ class CiscoIOSXRDevice(BaseDevice):
                 )
                 continue
 
+            routing_instance = "default"
+            if "VRF" in neighbour and neighbour["VRF"]:
+                routing_instance = neighbour["VRF"]
+
+            if routing_instance != "default" and not prog_args["with_vrfs"]:
+                logger.debug(
+                    "Ignoring neighbour '%s' with routing instance '%s' --with-vrfs not set.",
+                    neighbour["BGP_NEIGH"],
+                    routing_instance,
+                )
+                continue
+
             addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
             logger.debug("Found neighbour %s.", str(addr))
 
@@ -85,13 +97,6 @@ class CiscoIOSXRDevice(BaseDevice):
                 pfxrcd = neighbour["STATE_PFXRCD"]
             else:
                 state = neighbour["STATE_PFXRCD"]
-
-            routing_instance = "default"
-            if "VRF" in neighbour and neighbour["VRF"]:
-                routing_instance = neighbour["VRF"]
-
-            if routing_instance != "default" and not prog_args["with_vrfs"]:
-                continue
 
             protocol_instance = "default"
             if "BGP_INSTANCE" in neighbour and neighbour["BGP_INSTANCE"]:
