@@ -17,47 +17,16 @@ from json import JSONDecodeError
 
 import aiosqlite
 import click
+from aiosqlite import DatabaseError
 
 from bgpneiget.device.base import BaseDevice
 from bgpneiget.devices import init_device
+from bgpneiget.worker import DeviceWorker, DeviceWorkerException
 
 pp = pprint.PrettyPrinter(indent=2, width=120)
 
 logging.basicConfig(format="%(asctime)s %(message)s")
 logger = logging.getLogger()
-
-
-async def device_worker(
-    name: str,
-    queue: asyncio.Queue,
-    db_con: aiosqlite.Connection,
-    db_cursor: aiosqlite.Cursor,
-    db_lock: asyncio.Lock,
-    prog_args: dict,
-):
-    """Device worker coroutine, reads from the queue until empty.
-
-    Args:
-        name (str): Name for the worker.
-        queue (asyncio.Queue): AsyncIO queue
-    """
-    while True:
-        device: BaseDevice = await queue.get()
-
-        try:
-            result = await device.get_neighbours(prog_args)
-
-            async with db_lock:
-                await db_cursor.executemany(
-                    "INSERT INTO neighbours VALUES(:hostname,:address_family,:ip_version,:is_up,:pfxrcd,:protocol_instance,:remote_asn,:remote_ip,:routing_instance,:state);",
-                    result,
-                )
-                await db_con.commit()
-
-        except Exception as err:
-            logger.exception("[%s] Device failed: %s", device.hostname, err)
-
-        queue.task_done()
 
 
 async def do_devices(devices: dict, prog_args: dict):
@@ -79,6 +48,9 @@ async def do_devices(devices: dict, prog_args: dict):
         "CREATE TABLE neighbours(hostname, remote_ip, remote_asn, ip_version, address_family, is_up, pfxrcd, state, routing_instance, protocol_instance)"
     )
 
+    await db_con.commit()
+    await db_cursor.close()
+
     for device in devices.values():
         if device["os"] in supported_os:
             new_device = await init_device(device)
@@ -89,17 +61,20 @@ async def do_devices(devices: dict, prog_args: dict):
     # Create three worker tasks to process the queue concurrently.
     tasks = []
     for i in range(3):
-        task = asyncio.create_task(device_worker(f"worker-{i}", queue, db_con, db_cursor, db_lock, prog_args))
+        worker = DeviceWorker(db_con, db_lock, queue, prog_args)
+        task = await asyncio.create_task(worker.run(i))
         tasks.append(task)
-
-    # Wait until the queue is fully processed.
-    await queue.join()
 
     # Cancel our worker tasks.
     for task in tasks:
-        task.cancel()
+        await task
 
-    await db_cursor.close()
+    # Output CSV
+
+    async with db_con.execute("SELECT * FROM neighbours") as db_cursor:
+        async for row in db_cursor:
+            pp.pprint(row)
+
     await db_con.close()
 
 
