@@ -121,6 +121,9 @@ class CiscoIOSDevice(BaseDevice):
             if neighbour["VRF"] != "remote":
                 routing_instance = neighbour["VRF"]
 
+            if routing_instance != "default" and not prog_args["with_vrfs"]:
+                continue
+
             results.append(
                 {
                     "hostname": self.hostname,

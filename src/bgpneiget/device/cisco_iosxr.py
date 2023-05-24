@@ -90,6 +90,9 @@ class CiscoIOSXRDevice(BaseDevice):
             if "VRF" in neighbour and neighbour["VRF"]:
                 routing_instance = neighbour["VRF"]
 
+            if routing_instance != "default" and not prog_args["with_vrfs"]:
+                continue
+
             protocol_instance = "default"
             if "BGP_INSTANCE" in neighbour and neighbour["BGP_INSTANCE"]:
                 protocol_instance = neighbour["BGP_INSTANCE"]
