@@ -59,15 +59,22 @@ async def do_devices(devices: dict, prog_args: dict):
             logger.warning("[%s] %s is not a supported OS.", {device["hostname"]}, {device["os"]})
 
     # Create three worker tasks to process the queue concurrently.
-    tasks = []
+    workers = []
     for i in range(3):
         worker = DeviceWorker(db_con, db_lock, queue, prog_args)
-        task = await asyncio.create_task(worker.run(i))
-        tasks.append(task)
+        # tasks = asyncio.create_task(worker.run(i))
+        workers.append(worker.run(i))
 
-    # Cancel our worker tasks.
-    for task in tasks:
-        await task
+    worker_group = asyncio.gather(*workers)
+
+    try:
+      results = await worker_group
+    except Exception as err:
+      logger.error("Found error in worker: %s", err)
+      worker_group.cancel()
+      pp.pprint(worker_group)
+      raise err
+      return
 
     # Output CSV
 
