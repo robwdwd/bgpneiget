@@ -63,18 +63,32 @@ async def do_devices(devices: dict, prog_args: dict):
     for i in range(3):
         worker = DeviceWorker(db_con, db_lock, queue, prog_args)
         # tasks = asyncio.create_task(worker.run(i))
-        workers.append(worker.run(i))
+        task = asyncio.create_task(worker.run(i))
+        workers.append(task)
 
-    worker_group = asyncio.gather(*workers)
+    done, pending = await asyncio.wait(workers, return_when=asyncio.FIRST_EXCEPTION)
 
-    try:
-      results = await worker_group
-    except Exception as err:
-      logger.error("Found error in worker: %s", err)
-      worker_group.cancel()
-      pp.pprint(worker_group)
-      raise err
-      return
+    for task in done:
+        name = task.get_name()
+        print(f"DONE: {name}")
+        exception = task.exception()
+        if isinstance(exception, Exception):
+            print(f"{name} threw {exception}")
+        try:
+            result = task.result()
+            print(f"{name} returned {result}")
+        except asyncio.InvalidStateError as e:
+            print(f"ValueError: {e}")
+
+    for task in pending:
+        task.cancel()
+
+        try:
+            await task
+        except asyncio.CancelledError:
+            logger.info("Pending worker cancelled.")
+
+    return
 
     # Output CSV
 

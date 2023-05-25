@@ -54,44 +54,49 @@ class DeviceWorker:
 
     async def run(self, i: int) -> None:
         """Device worker coroutine, reads from the queue until empty."""
-        await self.db_con.close()
         try:
-            self.db_cursor = await self.db_con.cursor()
-        except DatabaseError as err:
-            raise DeviceWorkerException(f"Worker {i} failed to create db cursor: {err}") from err
-        except Exception as err:
-            raise DeviceWorkerException(f"Worker {i} failed to create db cursor: {err}") from err
-
-        while True:
-
-            if self.queue.empty():
-                logger.info("Worker #%d finished no more items in queue.", i)
-                return
-            
-            device: BaseDevice = self.queue.get_nowait()
-
-            result = []
-
+            await self.db_con.close()
             try:
-                result = await device.get_neighbours(self.prog_args)
+                self.db_cursor = await self.db_con.cursor()
+            except DatabaseError as err:
+                raise DeviceWorkerException(f"Worker {i} failed to create db cursor: {err}") from err
             except Exception as err:
-                logger.exception("[%s] Device failed: %s", device.hostname, err)
-                self.queue.task_done()
-                continue
+                raise DeviceWorkerException(f"Worker {i} failed to create db cursor: {err}") from err
 
-            if not result:
-                logger.info("[%s] Device has no neighbours.", device.hostname)
-                self.queue.task_done()
-                continue
+            while True:
+                if self.queue.empty():
+                    logger.info("Worker #%d finished no more items in queue.", i)
+                    return
 
-            async with self.db_lock:
+                device: BaseDevice = self.queue.get_nowait()
+
+                result = []
+
                 try:
-                    await self.db_cursor.executemany(
-                        "INSERT INTO neighbours VALUES(:hostname,:address_family,:ip_version,:is_up,:pfxrcd,:protocol_instance,:remote_asn,:remote_ip,:routing_instance,:state);",
-                        result,
-                    )
-                    await self.db_con.commit()
-                except DatabaseError as err:
-                    logger.exception("[%s] Failed to insert result in to database: %s", device.hostname, err)
+                    result = await device.get_neighbours(self.prog_args)
+                except Exception as err:
+                    logger.exception("[%s] Device failed: %s", device.hostname, err)
+                    self.queue.task_done()
+                    continue
 
-            self.queue.task_done()
+                if not result:
+                    logger.info("[%s] Device has no neighbours.", device.hostname)
+                    self.queue.task_done()
+                    continue
+
+                async with self.db_lock:
+                    try:
+                        await self.db_cursor.executemany(
+                            "INSERT INTO neighbours VALUES(:hostname,:address_family,:ip_version,:is_up,:pfxrcd,:protocol_instance,:remote_asn,:remote_ip,:routing_instance,:state);",
+                            result,
+                        )
+                        await self.db_con.commit()
+                    except DatabaseError as err:
+                        logger.exception("[%s] Failed to insert result in to database: %s", device.hostname, err)
+
+                self.queue.task_done()
+        except asyncio.CancelledError:
+            logger.info("Worker was cancelled.")
+            raise
+        finally:
+            logger.info("Worker finished, running cleanup")
