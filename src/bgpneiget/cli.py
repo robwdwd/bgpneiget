@@ -87,6 +87,8 @@ async def do_devices(devices: dict, prog_args: dict):
             await task
         except asyncio.CancelledError:
             logger.info("Pending worker cancelled.")
+        except Exception as err:
+            logger.info("Worker has exception %s.", err)
 
     return
 
