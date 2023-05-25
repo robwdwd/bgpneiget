@@ -50,7 +50,6 @@ async def do_devices(devices: dict, prog_args: dict):
 
     await db_con.commit()
     await db_cursor.close()
-
     for device in devices.values():
         if device["os"] in supported_os:
             new_device = await init_device(device)
@@ -62,35 +61,21 @@ async def do_devices(devices: dict, prog_args: dict):
     workers = []
     for i in range(3):
         worker = DeviceWorker(db_con, db_lock, queue, prog_args)
-        # tasks = asyncio.create_task(worker.run(i))
         task = asyncio.create_task(worker.run(i))
         workers.append(task)
-
-    done, pending = await asyncio.wait(workers, return_when=asyncio.FIRST_EXCEPTION)
-
-    for task in done:
-        name = task.get_name()
-        print(f"DONE: {name}")
-        exception = task.exception()
-        if isinstance(exception, Exception):
-            print(f"{name} threw {exception}")
-        try:
-            result = task.result()
-            print(f"{name} returned {result}")
-        except asyncio.InvalidStateError as e:
-            print(f"ValueError: {e}")
-
-    for task in pending:
+  
+    try:
+      await asyncio.gather(*workers, return_exceptions=False)
+    except DeviceWorkerException as err:
+      #loop = asyncio.get_running_loop()
+      for task in workers:
         task.cancel()
-
-        try:
-            await task
-        except asyncio.CancelledError:
-            logger.info("Pending worker cancelled.")
-        except Exception as err:
-            logger.info("Worker has exception %s.", err)
-
-    return
+      # Wait until all worker tasks are cancelled.
+      result = await asyncio.gather(*workers, return_exceptions=True)
+      #await loop.shutdown_default_executor()
+      pp.pprint(result)
+      await db_con.close()
+      return
 
     # Output CSV
 

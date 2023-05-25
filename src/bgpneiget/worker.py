@@ -55,7 +55,9 @@ class DeviceWorker:
     async def run(self, i: int) -> None:
         """Device worker coroutine, reads from the queue until empty."""
         try:
-            await self.db_con.close()
+            if i == 1:
+              raise DeviceWorkerException('test')
+
             try:
                 self.db_cursor = await self.db_con.cursor()
             except DatabaseError as err:
@@ -96,7 +98,9 @@ class DeviceWorker:
 
                 self.queue.task_done()
         except asyncio.CancelledError:
-            logger.info("Worker was cancelled.")
-            raise
+          logger.info("Worker #%d was cancelled due to failure of other workers.", i)
+          raise
         finally:
-            logger.info("Worker finished, running cleanup")
+            logger.info("Worker #%d finished, running cleanup.", i)
+            if self.db_cursor:
+              await self.db_cursor.close()
