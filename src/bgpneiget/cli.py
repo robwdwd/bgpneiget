@@ -63,19 +63,17 @@ async def do_devices(devices: dict, prog_args: dict):
         worker = DeviceWorker(db_con, db_lock, queue, prog_args)
         task = asyncio.create_task(worker.run(i))
         workers.append(task)
-  
+
     try:
-      await asyncio.gather(*workers, return_exceptions=False)
+        await asyncio.gather(*workers, return_exceptions=False)
     except DeviceWorkerException as err:
-      #loop = asyncio.get_running_loop()
-      for task in workers:
-        task.cancel()
-      # Wait until all worker tasks are cancelled.
-      result = await asyncio.gather(*workers, return_exceptions=True)
-      #await loop.shutdown_default_executor()
-      pp.pprint(result)
-      await db_con.close()
-      return
+        logger.error("Worker failed can not continue: %s", err)
+        for task in workers:
+            task.cancel()
+
+        await asyncio.gather(*workers, return_exceptions=True)
+        await db_con.close()
+        return
 
     # Output CSV
 

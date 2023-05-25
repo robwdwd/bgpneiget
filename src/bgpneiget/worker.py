@@ -10,7 +10,6 @@ import logging
 import pprint
 
 import aiosqlite
-from aiosqlite import DatabaseError
 
 from bgpneiget.device.base import BaseDevice
 
@@ -56,13 +55,11 @@ class DeviceWorker:
         """Device worker coroutine, reads from the queue until empty."""
         try:
             if i == 1:
-              raise DeviceWorkerException('test')
+                raise DeviceWorkerException("test")
 
             try:
                 self.db_cursor = await self.db_con.cursor()
-            except DatabaseError as err:
-                raise DeviceWorkerException(f"Worker {i} failed to create db cursor: {err}") from err
-            except Exception as err:
+            except aiosqlite.Error as err:
                 raise DeviceWorkerException(f"Worker {i} failed to create db cursor: {err}") from err
 
             while True:
@@ -93,14 +90,14 @@ class DeviceWorker:
                             result,
                         )
                         await self.db_con.commit()
-                    except DatabaseError as err:
+                    except aiosqlite.Error as err:
                         logger.exception("[%s] Failed to insert result in to database: %s", device.hostname, err)
 
                 self.queue.task_done()
         except asyncio.CancelledError:
-          logger.info("Worker #%d was cancelled due to failure of other workers.", i)
-          raise
+            logger.info("Worker #%d was cancelled due to failure of other workers.", i)
+            raise
         finally:
             logger.info("Worker #%d finished, running cleanup.", i)
             if self.db_cursor:
-              await self.db_cursor.close()
+                await self.db_cursor.close()
