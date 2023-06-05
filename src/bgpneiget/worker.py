@@ -54,8 +54,8 @@ class DeviceWorker:
     async def run(self, i: int) -> None:
         """Device worker coroutine, reads from the queue until empty."""
         try:
-            if i == 1:
-                raise DeviceWorkerException("test")
+            #if i == 1:
+            #    raise DeviceWorkerException("test")
 
             try:
                 self.db_cursor = await self.db_con.cursor()
