@@ -9,17 +9,17 @@
 
 """Get BGP neighbours from network devices."""
 import asyncio
+import csv
 import json
 import logging
 import os
 import pprint
+import sys
 from json import JSONDecodeError
 
 import aiosqlite
 import click
-from aiosqlite import DatabaseError
 
-from bgpneiget.device.base import BaseDevice
 from bgpneiget.devices import init_device
 from bgpneiget.worker import DeviceWorker, DeviceWorkerException
 
@@ -41,15 +41,19 @@ async def do_devices(devices: dict, prog_args: dict):
     queue = asyncio.Queue()
     db_lock = asyncio.Lock()
 
-    db_con = await aiosqlite.connect(prog_args["db_file"])
-    db_cursor = await db_con.cursor()
-    await db_cursor.execute("DROP TABLE IF EXISTS neighbours")
-    await db_cursor.execute(
-        "CREATE TABLE neighbours(hostname, remote_ip, remote_asn, ip_version, address_family, is_up, pfxrcd, state, routing_instance, protocol_instance)"
-    )
+    try:
+        db_con = await aiosqlite.connect(prog_args["db_file"])
+        db_cursor = await db_con.cursor()
+        await db_cursor.execute("DROP TABLE IF EXISTS neighbours")
+        await db_cursor.execute(
+            "CREATE TABLE neighbours(hostname, remote_ip, remote_asn, ip_version, address_family, is_up, pfxrcd, state, routing_instance, protocol_instance)"
+        )
 
-    await db_con.commit()
-    await db_cursor.close()
+        await db_con.commit()
+        await db_cursor.close()
+    except aiosqlite.Error as err:
+        raise SystemExit(f"Failed to create new SQLite database: {err}") from err
+
     for device in devices.values():
         if device["os"] in supported_os:
             new_device = await init_device(device)
@@ -79,15 +83,18 @@ async def do_devices(devices: dict, prog_args: dict):
 
     db_con.row_factory = aiosqlite.Row
 
-    
-
     async with db_con.execute("SELECT * FROM neighbours") as db_cursor:
-
         results = await db_cursor.fetchall()
-        print(json.dumps([dict(neighbour) for neighbour in results], indent=2, sort_keys=True))
+        if prog_args["out_format"] == "json":
+            print(json.dumps([dict(neighbour) for neighbour in results], indent=2, sort_keys=True))
+        elif prog_args["out_format"] == "csv":
+            lines = [dict(neighbour) for neighbour in results]
+            writer = csv.DictWriter(sys.stdout, fieldnames=lines[0].keys())
+            writer.writeheader()
+            writer.writerows(lines)
 
-        #async for row in db_cursor:
-        #    pp.pprint(dict(row))
+        else:
+            raise SystemExit("Invalid output format.")
 
     await db_con.close()
 
@@ -149,6 +156,13 @@ async def do_devices(devices: dict, prog_args: dict):
     default=["ipv4", "ipv6"],
     help="Get BGP neighbours from these tables.",
 )
+@click.option(
+    "--out-format",
+    type=click.Choice(["json", "csv"], case_sensitive=False),
+    metavar="FORMAT",
+    default="json",
+    help="Output format.",
+)
 def cli(**cli_args):
     """Entry point for command.
 
@@ -197,6 +211,7 @@ def cli(**cli_args):
         "ignore_as": cli_args["ignore_as"],
         "table": cli_args["table"],
         "with_vrfs": cli_args["with_vrfs"],
+        "out_format": cli_args["out_format"],
     }
 
     asyncio.run(do_devices(devices, prog_args))
