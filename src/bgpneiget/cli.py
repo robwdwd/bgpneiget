@@ -77,9 +77,17 @@ async def do_devices(devices: dict, prog_args: dict):
 
     # Output CSV
 
+    db_con.row_factory = aiosqlite.Row
+
+    
+
     async with db_con.execute("SELECT * FROM neighbours") as db_cursor:
-        async for row in db_cursor:
-            pp.pprint(row)
+
+        results = await db_cursor.fetchall()
+        print(json.dumps([dict(neighbour) for neighbour in results], indent=2, sort_keys=True))
+
+        #async for row in db_cursor:
+        #    pp.pprint(dict(row))
 
     await db_con.close()
 

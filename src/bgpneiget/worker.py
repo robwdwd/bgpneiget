@@ -86,7 +86,9 @@ class DeviceWorker:
                 async with self.db_lock:
                     try:
                         await self.db_cursor.executemany(
-                            "INSERT INTO neighbours VALUES(:hostname,:address_family,:ip_version,:is_up,:pfxrcd,:protocol_instance,:remote_asn,:remote_ip,:routing_instance,:state);",
+                            "INSERT INTO neighbours "
+                            "(hostname,address_family,ip_version,is_up,pfxrcd,protocol_instance,remote_asn,remote_ip,routing_instance,state) "
+                            "VALUES(:hostname,:address_family,:ip_version,:is_up,:pfxrcd,:protocol_instance,:remote_asn,:remote_ip,:routing_instance,:state);",
                             result,
                         )
                         await self.db_con.commit()
