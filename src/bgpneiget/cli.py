@@ -79,7 +79,7 @@ async def do_devices(devices: dict, prog_args: dict):
         await db_con.close()
         return
 
-    # Output CSV
+    # Output CSV or JSON
 
     db_con.row_factory = aiosqlite.Row
 
@@ -89,7 +89,13 @@ async def do_devices(devices: dict, prog_args: dict):
             print(json.dumps([dict(neighbour) for neighbour in results], indent=2, sort_keys=True))
         elif prog_args["out_format"] == "csv":
             lines = [dict(neighbour) for neighbour in results]
-            writer = csv.DictWriter(sys.stdout, fieldnames=lines[0].keys())
+            writer = csv.DictWriter(
+                sys.stdout,
+                fieldnames=lines[0].keys(),
+                dialect="unix",
+                quotechar=prog_args["quotechar"],
+                delimiter=prog_args["delimeter"],
+            )
             writer.writeheader()
             writer.writerows(lines)
 
@@ -163,6 +169,20 @@ async def do_devices(devices: dict, prog_args: dict):
     default="json",
     help="Output format.",
 )
+@click.option(
+    "--delimiter",
+    type=str,
+    metavar="DELIMITER",
+    default=",",
+    help="Delimiter used for CSV output.",
+)
+@click.option(
+    "--quotechar",
+    type=str,
+    metavar="QUOTECHAR",
+    default='"',
+    help="Character used for quoting CSV fields.",
+)
 def cli(**cli_args):
     """Entry point for command.
 
@@ -212,6 +232,8 @@ def cli(**cli_args):
         "table": cli_args["table"],
         "with_vrfs": cli_args["with_vrfs"],
         "out_format": cli_args["out_format"],
+        "delimiter": cli_args["delimiter"],
+        "quotechar": cli_args["quotechar"],
     }
 
     asyncio.run(do_devices(devices, prog_args))
