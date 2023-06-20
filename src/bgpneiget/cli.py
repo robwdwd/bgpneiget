@@ -55,9 +55,10 @@ async def do_devices(devices: dict, prog_args: dict):
         raise SystemExit(f"Failed to create new SQLite database: {err}") from err
 
     for device in devices.values():
-        if device['protocol'] == 'TELNET' and prog_args['skip_telnet']:
+        if device["protocol"] == "TELNET" and prog_args["skip_telnet"]:
+            logger.info("[%s] Skipping device using telnet protocol.", device["hostname"])
             continue
-        
+
         if device["os"] in supported_os:
             new_device = await init_device(device)
             await queue.put(new_device)
@@ -186,7 +187,7 @@ async def do_devices(devices: dict, prog_args: dict):
     default='"',
     help="Character used for quoting CSV fields.",
 )
-@click.option('--skip-telnet', is_flag=True)
+@click.option("--skip-telnet", is_flag=True)
 def cli(**cli_args):
     """Entry point for command.
 
