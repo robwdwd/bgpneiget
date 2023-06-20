@@ -12,6 +12,7 @@ import os
 import pprint
 from typing import Type
 
+from asyncssh.misc import Error as AsyncSSHError
 from scrapli.driver.core import AsyncIOSXEDriver
 from scrapli.exceptions import ScrapliException
 from textfsm import TextFSM
@@ -263,7 +264,7 @@ class CiscoIOSDevice(BaseDevice):
 
         try:
             response = await get_output(self, commands, prog_args["username"], prog_args["password"])
-        except ScrapliException as err:
+        except (AsyncSSHError, ScrapliException) as err:
             logger.error("[%s] Can not get neighbours from device: %s", self.hostname, err)
             return result
 

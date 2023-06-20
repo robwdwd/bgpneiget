@@ -8,11 +8,13 @@
 import ipaddress
 import logging
 import pprint
+import re
 from typing import Type
 
 import xmltodict
 from scrapli.driver.core import AsyncJunosDriver
 from scrapli.exceptions import ScrapliException
+from asyncssh.misc import Error as AsyncSSHError
 
 from bgpneiget.device.base import BaseDevice
 from bgpneiget.runcmds import get_output
@@ -305,12 +307,16 @@ class JunOsDevice(BaseDevice):
 
         try:
             response = await get_output(self, commands, prog_args["username"], prog_args["password"])
-        except ScrapliException as err:
+        except (AsyncSSHError, ScrapliException) as err:
             logger.error("[%s] Can not get neighbours from device: %s", self.hostname, err)
             return result
 
         for resp in response:
-            stripped_response = resp.result[: resp.result.rfind("\n")]
-            result = result + await self.process_bgp_neighbours(stripped_response, prog_args)
+            stripped_response = re.search(r"(?sm)\<.*\>", resp.result).group()
+            try:
+                result = result + await self.process_bgp_neighbours(stripped_response, prog_args)
+            except Exception:
+                logger.error("[%s] Unable to parse XML output, maybe no neigbhbours.", self.hostname)
+                return result
 
         return result
