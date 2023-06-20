@@ -12,9 +12,9 @@ import re
 from typing import Type
 
 import xmltodict
+from asyncssh.misc import Error as AsyncSSHError
 from scrapli.driver.core import AsyncJunosDriver
 from scrapli.exceptions import ScrapliException
-from asyncssh.misc import Error as AsyncSSHError
 
 from bgpneiget.device.base import BaseDevice
 from bgpneiget.runcmds import get_output
