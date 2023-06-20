@@ -13,6 +13,7 @@ import pprint
 from typing import Type
 
 from scrapli.driver.core import AsyncIOSXEDriver
+from scrapli.exceptions import ScrapliException
 from textfsm import TextFSM
 
 from bgpneiget.device.base import BaseDevice
@@ -253,17 +254,20 @@ class CiscoIOSDevice(BaseDevice):
         """
         commands = {}
         reverse_commands = {}
+        result = []
 
         for table in prog_args["table"]:
             cmd = self.get_bgp_cmd_global(table)
             commands[table] = cmd
             reverse_commands[cmd] = table
 
-        response = await get_output(self, commands, prog_args["username"], prog_args["password"])
+        try:
+            response = await get_output(self, commands, prog_args["username"], prog_args["password"])
+        except ScrapliException as err:
+            logger.error("[%s] Can not get neighbours from device: %s", self.hostname, err)
+            return result
 
         loop = asyncio.get_running_loop()
-
-        result = []
 
         for resp in response:
             table = reverse_commands[resp.channel_input]

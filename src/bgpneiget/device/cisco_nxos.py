@@ -12,6 +12,7 @@ import pprint
 from typing import Type
 
 from scrapli.driver.core import AsyncNXOSDriver
+from scrapli.exceptions import ScrapliException
 from textfsm import TextFSM
 
 from bgpneiget.device.base import BaseDevice

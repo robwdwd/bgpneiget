@@ -12,6 +12,7 @@ from typing import Type
 
 import xmltodict
 from scrapli.driver.core import AsyncJunosDriver
+from scrapli.exceptions import ScrapliException
 
 from bgpneiget.device.base import BaseDevice
 from bgpneiget.runcmds import get_output
@@ -298,12 +299,15 @@ class JunOsDevice(BaseDevice):
             dict: Found BGP neighbours
         """
         commands = {}
+        result = []
 
         commands["all"] = self.get_bgp_cmd_global()
 
-        response = await get_output(self, commands, prog_args["username"], prog_args["password"])
-
-        result = []
+        try:
+            response = await get_output(self, commands, prog_args["username"], prog_args["password"])
+        except ScrapliException as err:
+            logger.error("[%s] Can not get neighbours from device: %s", self.hostname, err)
+            return result
 
         for resp in response:
             stripped_response = resp.result[: resp.result.rfind("\n")]
