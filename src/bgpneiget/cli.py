@@ -9,6 +9,7 @@
 
 """Get BGP neighbours from network devices."""
 import asyncio
+import shutil
 import csv
 import json
 import logging
@@ -230,7 +231,6 @@ def cli(**cli_args):
         raise SystemExit("Required --seed or --device options are missing.")
 
     tmp_db_dir = tempfile.mkdtemp(prefix="bgpneiget_", suffix="_db")
-    print(tmp_db_dir)
 
     prog_args = {
         "username": cfg["username"],
@@ -248,4 +248,7 @@ def cli(**cli_args):
 
     asyncio.run(do_devices(devices, prog_args))
 
-    os.removedirs(tmp_db_dir)
+    try:
+        shutil.rmtree(tmp_db_dir)
+    except OSError as error:
+        logger.warning("Failed to remove temporary database directory, %s: %s", tmp_db_dir, error)
