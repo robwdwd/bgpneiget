@@ -15,6 +15,7 @@ import logging
 import os
 import pprint
 import sys
+import tempfile
 from json import JSONDecodeError
 
 import aiosqlite
@@ -46,7 +47,7 @@ async def do_devices(devices: dict, prog_args: dict):
         db_cursor = await db_con.cursor()
         await db_cursor.execute("DROP TABLE IF EXISTS neighbours")
         await db_cursor.execute(
-            "CREATE TABLE neighbours(hostname, remote_ip, remote_asn, ip_version, address_family, is_up, pfxrcd, state, routing_instance, protocol_instance)"
+            "CREATE TABLE neighbours(hostname, os, remote_ip, remote_asn, ip_version, address_family, is_up, pfxrcd, state, routing_instance, protocol_instance)"
         )
 
         await db_con.commit()
@@ -228,10 +229,13 @@ def cli(**cli_args):
     else:
         raise SystemExit("Required --seed or --device options are missing.")
 
+    tmp_db_dir = tempfile.mkdtemp(prefix="bgpneiget_", suffix="_db")
+    print(tmp_db_dir)
+
     prog_args = {
         "username": cfg["username"],
         "password": cfg["password"],
-        "db_file": cfg["db_file"],
+        "db_file": f"{tmp_db_dir}/results.db",
         "except_as": cli_args["except_as"],
         "ignore_as": cli_args["ignore_as"],
         "table": cli_args["table"],
@@ -243,3 +247,5 @@ def cli(**cli_args):
     }
 
     asyncio.run(do_devices(devices, prog_args))
+
+    os.removedirs(tmp_db_dir)

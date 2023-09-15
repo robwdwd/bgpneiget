@@ -110,6 +110,7 @@ class CiscoIOSXRDevice(BaseDevice):
             results.append(
                 {
                     "hostname": self.hostname,
+                    "os": self.os,
                     "remote_ip": str(addr),
                     "remote_asn": as_number,
                     "address_family": table,
