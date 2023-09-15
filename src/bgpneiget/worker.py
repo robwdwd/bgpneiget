@@ -87,8 +87,8 @@ class DeviceWorker:
                     try:
                         await self.db_cursor.executemany(
                             "INSERT INTO neighbours "
-                            "(hostname,address_family,ip_version,is_up,pfxrcd,protocol_instance,remote_asn,remote_ip,routing_instance,state) "
-                            "VALUES(:hostname,:address_family,:ip_version,:is_up,:pfxrcd,:protocol_instance,:remote_asn,:remote_ip,:routing_instance,:state);",
+                            "(hostname,os, address_family,ip_version,is_up,pfxrcd,protocol_instance,remote_asn,remote_ip,routing_instance,state) "
+                            "VALUES(:hostname,:os,:address_family,:ip_version,:is_up,:pfxrcd,:protocol_instance,:remote_asn,:remote_ip,:routing_instance,:state);",
                             result,
                         )
                         await self.db_con.commit()
