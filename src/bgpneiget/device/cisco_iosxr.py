@@ -111,6 +111,7 @@ class CiscoIOSXRDevice(BaseDevice):
                 {
                     "hostname": self.hostname,
                     "os": self.os,
+                    "platform": self.platform,
                     "remote_ip": str(addr),
                     "remote_asn": as_number,
                     "address_family": table,

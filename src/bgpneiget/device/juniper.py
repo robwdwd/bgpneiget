@@ -63,6 +63,7 @@ class JunOsDevice(BaseDevice):
         return {
             "hostname": self.hostname,
             "os": self.os,
+            "platform": self.platform,
             "remote_ip": "",
             "remote_asn": -1,
             "address_family": "",

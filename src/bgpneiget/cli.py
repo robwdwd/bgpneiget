@@ -9,12 +9,12 @@
 
 """Get BGP neighbours from network devices."""
 import asyncio
-import shutil
 import csv
 import json
 import logging
 import os
 import pprint
+import shutil
 import sys
 import tempfile
 from json import JSONDecodeError
@@ -48,7 +48,7 @@ async def do_devices(devices: dict, prog_args: dict):
         db_cursor = await db_con.cursor()
         await db_cursor.execute("DROP TABLE IF EXISTS neighbours")
         await db_cursor.execute(
-            "CREATE TABLE neighbours(hostname, os, remote_ip, remote_asn, ip_version, address_family, is_up, pfxrcd, state, routing_instance, protocol_instance)"
+            "CREATE TABLE neighbours(hostname, os, platform, remote_ip, remote_asn, ip_version, address_family, is_up, pfxrcd, state, routing_instance, protocol_instance)"
         )
 
         await db_con.commit()
