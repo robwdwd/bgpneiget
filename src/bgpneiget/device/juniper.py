@@ -179,8 +179,18 @@ class JunOsDevice(BaseDevice):
 
             remote_asn = int(bgp_peer["peer-as"])
 
+            if prog_args["ignore_private_asn"] and not (1 <= remote_asn <= 23455) and not (23457 <= remote_asn <= 64495) and not (131072 <= remote_asn <= 4199999999):
+                logger.info(
+                    "[%s] Ignoring neighbour '%s', ASN '%s' is reserved or private.",
+                    self.hostname,
+                    remote_ip,
+                    remote_asn,
+                )
+                continue
+
+
             if prog_args["except_as"] and (remote_asn not in prog_args["except_as"]):
-                logger.debug(
+                logger.info(
                     "[%s] Ignoring neighbour '%s', '%s' not in except AS list.",
                     self.hostname,
                     remote_ip,
@@ -189,7 +199,7 @@ class JunOsDevice(BaseDevice):
                 continue
 
             if prog_args["ignore_as"] and remote_asn in prog_args["ignore_as"]:
-                logger.debug(
+                logger.info(
                     "[%s] Ignoring neighbour '%s', '%s' in ignored AS list.",
                     self.hostname,
                     remote_ip,

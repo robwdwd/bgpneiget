@@ -158,6 +158,12 @@ async def do_devices(devices: dict, prog_args: dict):
     "--ignore-as", type=int, metavar="ASNUM", multiple=True, help="AS number to filter out. Can be used multiple times."
 )
 @click.option(
+    "--ignore-private-asn",
+    is_flag=True,
+    help="Ignore private or reserved ASNs.",
+)
+
+@click.option(
     "--ri", default="global", help="Regular expressions of routing instances / vrfs to match. Default 'global'"
 )
 @click.option(
@@ -176,11 +182,11 @@ async def do_devices(devices: dict, prog_args: dict):
     help="Output format.",
 )
 @click.option(
-    "--delimiter",
+    "--delimeter",
     type=str,
-    metavar="DELIMITER",
+    metavar="DELIMETER",
     default=",",
-    help="Delimiter used for CSV output.",
+    help="Delimeter used for CSV output.",
 )
 @click.option(
     "--quotechar",
@@ -238,10 +244,11 @@ def cli(**cli_args):
         "db_file": f"{tmp_db_dir}/results.db",
         "except_as": cli_args["except_as"],
         "ignore_as": cli_args["ignore_as"],
+        "ignore_private_asn": cli_args["ignore_private_asn"],
         "table": cli_args["table"],
         "with_vrfs": cli_args["with_vrfs"],
         "out_format": cli_args["out_format"],
-        "delimiter": cli_args["delimiter"],
+        "delimeter": cli_args["delimeter"],
         "quotechar": cli_args["quotechar"],
         "skip_telnet": cli_args["skip_telnet"],
     }
