@@ -78,18 +78,22 @@ class CiscoIOSDevice(BaseDevice):
                 )
                 continue
 
-            if prog_args["ignore_private_asn"] and not (1 <= as_number <= 23455) and not (23457 <= as_number <= 64495) and not (131072 <= as_number <= 4199999999):
+            if (
+                prog_args["ignore_private_asn"]
+                and not (1 <= as_number <= 23455)
+                and not (23457 <= as_number <= 64495)
+                and not (131072 <= as_number <= 4199999999)
+            ):
                 logger.info(
                     "[%s] Ignoring neighbour '%s', ASN '%s' is reserved or private.",
                     self.hostname,
-                    remote_ip,
+                    neighbour["BGP_NEIGH"],
                     as_number,
                 )
                 continue
 
-
             if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
-                logger.debug(
+                logger.info(
                     "[%s] Ignoring neighbour '%s', '%s' not in except AS list.",
                     self.hostname,
                     neighbour["BGP_NEIGH"],
@@ -98,7 +102,7 @@ class CiscoIOSDevice(BaseDevice):
                 continue
 
             if prog_args["ignore_as"] and as_number in prog_args["ignore_as"]:
-                logger.debug(
+                logger.info(
                     "[%s] Ignoring neighbour '%s', '%s' in ignored AS list.",
                     self.hostname,
                     neighbour["BGP_NEIGH"],
@@ -191,8 +195,22 @@ class CiscoIOSDevice(BaseDevice):
             ipversion = addr.version
             as_number = int(neighbour["NEIGH_AS"])
 
+            if (
+                prog_args["ignore_private_asn"]
+                and not (1 <= as_number <= 23455)
+                and not (23457 <= as_number <= 64495)
+                and not (131072 <= as_number <= 4199999999)
+            ):
+                logger.info(
+                    "[%s] Ignoring neighbour '%s', ASN '%s' is reserved or private.",
+                    self.hostname,
+                    neighbour["BGP_NEIGH"],
+                    as_number,
+                )
+                continue
+
             if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
-                logger.debug(
+                logger.info(
                     "[%s] Ignoring neighbour '%s', '%s' not in except AS list.",
                     self.hostname,
                     neighbour["BGP_NEIGH"],
@@ -201,7 +219,7 @@ class CiscoIOSDevice(BaseDevice):
                 continue
 
             if prog_args["ignore_as"] and as_number in prog_args["ignore_as"]:
-                logger.debug(
+                logger.info(
                     "[%s] Ignoring neighbour '%s', '%s' in ignored AS list.",
                     self.hostname,
                     neighbour["BGP_NEIGH"],
