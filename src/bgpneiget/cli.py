@@ -112,6 +112,8 @@ async def do_devices(devices: dict, prog_args: dict):
         return
 
     await output_results(db_con, prog_args["out_format"], prog_args["quotechar"], prog_args["delimeter"])
+    await db_con.close()
+
 
 
 def load_config(config_file_cli: Union[str, None]) -> dict:
@@ -310,7 +312,7 @@ def cli(**cli_args):
 
     devices = setup_devices(cli_args)
 
-    with tempfile.TemporaryDirectory(prefix="bgpneiget_", suffix="_db", ignore_cleanup_errors=True) as tmp_db_dir:
+    with tempfile.TemporaryDirectory(prefix="bgpneiget_", suffix="_db", ignore_cleanup_errors=False) as tmp_db_dir:
 
         # Override any configuration file user name and password with command line
         # options
@@ -339,3 +341,4 @@ def cli(**cli_args):
         }
 
         asyncio.run(do_devices(devices, prog_args))
+
