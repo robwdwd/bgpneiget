@@ -122,7 +122,7 @@ async def do_devices(devices: dict, prog_args: dict):
 )
 @click.option(
     "--loglevel",
-    "-L",s
+    "-L",
     type=str,
     default="WARNING",
     help="Set logging level.",
