@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bgpneiget"
-version = "2.0.8"
+version = "2.0.9"
 description = "Get BGP Neighbours from network devices"
 authors = ["Rob Woodward <rob@emailplus.org>"]
 
@@ -23,7 +23,7 @@ black = "^24.4.2"
 pytest = "^8.2.2"
 pylint = "^3.0.2"
 pydocstyle = "^6.1.1"
-flake8 = "^7.0.0"
+flake8 = "^7.1.0"
 isort = "^5.12.0"
 
 [tool.poetry.scripts]

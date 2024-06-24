@@ -128,6 +128,22 @@ async def do_devices(devices: dict, prog_args: dict):
     help="Set logging level.",
 )
 @click.option(
+    "--username",
+    type=str,
+    required=False,
+    metavar="USERNAME",
+    help="Username to log into routers",
+    envvar="BGPNEIGET_USERNAME",
+)
+@click.option(
+    "--password",
+    type=str,
+    required=False,
+    metavar="PASSWORD",
+    help="Password to log into routers",
+    envvar="BGPNEIGET_PASSWORD",
+)
+@click.option(
     "-s",
     "--seed",
     type=click.File(mode="r"),
@@ -162,7 +178,6 @@ async def do_devices(devices: dict, prog_args: dict):
     is_flag=True,
     help="Ignore private or reserved ASNs.",
 )
-
 @click.option(
     "--ri", default="global", help="Regular expressions of routing instances / vrfs to match. Default 'global'"
 )
@@ -237,6 +252,12 @@ def cli(**cli_args):
         raise SystemExit("Required --seed or --device options are missing.")
 
     tmp_db_dir = tempfile.mkdtemp(prefix="bgpneiget_", suffix="_db")
+
+    if "username" in cli_args:
+        cfg["username"] = cli_args["username"]
+
+    if "password" in cli_args:
+        cfg["password"] = cli_args["password"]
 
     prog_args = {
         "username": cfg["username"],
