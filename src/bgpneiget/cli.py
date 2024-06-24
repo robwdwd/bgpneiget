@@ -14,7 +14,6 @@ import json
 import logging
 import os
 import pprint
-import shutil
 import sys
 import tempfile
 from json import JSONDecodeError
@@ -32,30 +31,60 @@ logging.basicConfig(format="%(asctime)s %(message)s")
 logger = logging.getLogger()
 
 
-async def do_devices(devices: dict, prog_args: dict):
-    """Process the devices in the queue.
-
-    Args:
-        devices (dict): Dictionary of devices.
-        prog_args (dict): Program arguments.
-    """
-    supported_os = ["IOS", "IOS-XR", "IOS-XE", "JunOS", "EOS", "NX-OS"]
-
-    queue = asyncio.Queue()
-    db_lock = asyncio.Lock()
-
+async def setup_database(db_file: str) -> aiosqlite.Connection:
     try:
-        db_con = await aiosqlite.connect(prog_args["db_file"])
+        db_con = await aiosqlite.connect(db_file)
         db_cursor = await db_con.cursor()
         await db_cursor.execute("DROP TABLE IF EXISTS neighbours")
         await db_cursor.execute(
             "CREATE TABLE neighbours(hostname, os, platform, remote_ip, remote_asn, ip_version, address_family, is_up, pfxrcd, state, routing_instance, protocol_instance)"
         )
-
         await db_con.commit()
         await db_cursor.close()
+        return db_con
     except aiosqlite.Error as err:
         raise SystemExit(f"Failed to create new SQLite database: {err}") from err
+
+
+async def output_results(db_con: aiosqlite.Connection, out_format: str, quotechar: str, delimiter: str):
+    db_con.row_factory = aiosqlite.Row
+    async with db_con.execute("SELECT * FROM neighbours") as db_cursor:
+        results = await db_cursor.fetchall()
+        if out_format == "json":
+            print(json.dumps([dict(neighbour) for neighbour in results], indent=2, sort_keys=True))
+        elif out_format == "csv":
+            lines = [dict(neighbour) for neighbour in results]
+            writer = csv.DictWriter(
+                sys.stdout,
+                fieldnames=lines[0].keys(),
+                dialect="unix",
+                quotechar=quotechar,
+                delimiter=delimiter,
+            )
+            writer.writeheader()
+            writer.writerows(lines)
+        else:
+            raise SystemExit("Invalid output format.")
+
+
+async def do_devices(devices: dict, prog_args: dict):
+    """
+    Process devices concurrently, store results in a SQLite database, and output in JSON or CSV format.
+
+    Args:
+        devices (dict): Dictionary of devices to process.
+        prog_args (dict): Program arguments including database file, output format, and other settings.
+
+    Raises:
+        SystemExit: If there is an error creating the SQLite database or an invalid output format is specified.
+    """
+
+    supported_os = ["IOS", "IOS-XR", "IOS-XE", "JunOS", "EOS", "NX-OS"]
+
+    queue = asyncio.Queue()
+    db_lock = asyncio.Lock()
+
+    db_con = await setup_database(prog_args["db_file"])
 
     for device in devices.values():
         if device["protocol"] == "TELNET" and prog_args["skip_telnet"]:
@@ -69,11 +98,7 @@ async def do_devices(devices: dict, prog_args: dict):
             logger.warning("[%s] %s is not a supported OS.", {device["hostname"]}, {device["os"]})
 
     # Create three worker tasks to process the queue concurrently.
-    workers = []
-    for i in range(3):
-        worker = DeviceWorker(db_con, db_lock, queue, prog_args)
-        task = asyncio.create_task(worker.run(i))
-        workers.append(task)
+    workers = [asyncio.create_task(DeviceWorker(db_con, db_lock, queue, prog_args).run(i)) for i in range(3)]
 
     try:
         await asyncio.gather(*workers, return_exceptions=False)
@@ -86,37 +111,15 @@ async def do_devices(devices: dict, prog_args: dict):
         await db_con.close()
         return
 
-    # Output CSV or JSON
+    await output_results(db_con, prog_args["out_format"], prog_args["quotechar"], prog_args["delimeter"])
 
-    db_con.row_factory = aiosqlite.Row
-
-    async with db_con.execute("SELECT * FROM neighbours") as db_cursor:
-        results = await db_cursor.fetchall()
-        if prog_args["out_format"] == "json":
-            print(json.dumps([dict(neighbour) for neighbour in results], indent=2, sort_keys=True))
-        elif prog_args["out_format"] == "csv":
-            lines = [dict(neighbour) for neighbour in results]
-            writer = csv.DictWriter(
-                sys.stdout,
-                fieldnames=lines[0].keys(),
-                dialect="unix",
-                quotechar=prog_args["quotechar"],
-                delimiter=prog_args["delimeter"],
-            )
-            writer.writeheader()
-            writer.writerows(lines)
-
-        else:
-            raise SystemExit("Invalid output format.")
-
-    await db_con.close()
 
 def load_config(config_file_cli: Union[str, None]) -> dict:
     """
     Loads and parses a configuration file using JSON.
 
     Args:
-        config_file_cli (str): Command line location of config file if specified.
+        config_file_cli (str): Command line location of the config file if specified.
 
     Returns:
         dict: The parsed configuration data.
@@ -125,36 +128,71 @@ def load_config(config_file_cli: Union[str, None]) -> dict:
         SystemExit: If there is an error parsing the configuration file.
     """
 
-    config_file_path = ""
+    config_file_paths = [
+        config_file_cli,
+        f"{os.environ.get('HOME', '')}/.config/bgpneiget/config.json",
+        "/etc/bgpneiget/config.json",
+    ]
 
-    if config_file_cli:
-        if not os.path.isfile(config_file_cli):
-            raise SystemExit(f"Configuration file '{config_file_cli}' does not exist.")
-        else:
-            config_file_path = config_file_cli
+    for path in config_file_paths:
+        if path and os.path.isfile(path):
+            with open(path, "r") as config_file:
+                try:
+                    return json.load(config_file)
+                except JSONDecodeError as err:
+                    raise SystemExit(f"Unable to parse configuration file: {err}") from err
 
-    if not config_file_path:
-        home_dir = os.environ.get('HOME')
-        if home_dir:
-            config_file_home = home_dir + "/.config/bgpneiget/config.json"
-            if os.path.isfile(config_file_home):
-                config_file_path = config_file_home 
+    raise SystemExit("Unable to find any configuration file")
 
-    if not config_file_path:
-        config_file_global = "/etc/bgpneiget/config.json"
-        if os.path.isfile(config_file_global):
-            config_file_path = config_file_global
-            
 
-    if not config_file_path:
-        raise SystemExit(f"Unable to find any configuration file")
+def check_mutually_exclusive_options(cli_args: dict):
+    """
+    Check for mutually exclusive options in the command-line arguments.
 
-    with open(config_file_path, "r") as config_file:
+    Args:
+        cli_args (dict): Dictionary containing command-line arguments.
+
+    Raises:
+        SystemExit: If mutually exclusive options are provided in the command-line arguments.
+    """
+
+    if cli_args["ignore_as"] and cli_args["except_as"]:
+        raise SystemExit(
+            f"{os.path.basename(__file__)} error: argument --ignore-as: not allowed with argument --except-as"
+        )
+    if cli_args["seed"] is not None and cli_args["device"] is not None:
+        raise SystemExit(f"{os.path.basename(__file__)} error: argument --seed: not allowed with argument --device")
+
+
+def setup_devices(cli_args: dict) -> dict:
+    """
+    Setup devices based on command-line arguments.
+
+    Args:
+        cli_args (dict): Dictionary containing command-line arguments.
+
+    Returns:
+        dict: Dictionary of devices with hostname, OS, and protocol.
+
+    Raises:
+        SystemExit: If required --seed or --device options are missing or there is an error decoding the JSON seed file.
+    """
+
+    if cli_args["device"]:
+        return {
+            cli_args["device"][0]: {
+                "hostname": cli_args["device"][0],
+                "os": cli_args["device"][1],
+                "protocol": cli_args["device"][2],
+            }
+        }
+    elif cli_args["seed"]:
         try:
-            return json.load(config_file)
+            return json.load(cli_args["seed"])
         except JSONDecodeError as err:
-            raise SystemExit(f"Unable to parse configuration file: {err}") from err
-
+            raise SystemExit(f"ERROR: Unable to decode json file: {err}") from err
+    else:
+        raise SystemExit("Required --seed or --device options are missing.")
 
 
 @click.command()
@@ -164,7 +202,7 @@ def load_config(config_file_cli: Union[str, None]) -> dict:
     help="Configuaration file to load.",
     envvar="BGPNEIGET_CONFIG_FILE",
     type=str,
-    required=False
+    required=False,
 )
 @click.option(
     "--loglevel",
@@ -264,63 +302,40 @@ def cli(**cli_args):
         SystemExit: Error in command line options
     """
 
-    cfg = load_config(cli_args['config'])
-
-    if cli_args["ignore_as"] and cli_args["except_as"]:
-        raise SystemExit(
-            f"{os.path.basename(__file__)} error: argument --ignore-as: not allowed with argument --except-as"
-        )
-
-    if cli_args["seed"] is not None and cli_args["device"] is not None:
-        raise SystemExit(f"{os.path.basename(__file__)} error: argument --seed: not allowed with argument --device")
+    cfg = load_config(cli_args["config"])
+    check_mutually_exclusive_options(cli_args)
 
     logger.setLevel(cli_args["loglevel"].upper())
     devices = {}
 
-    if cli_args["device"]:
-        devices = {
-            cli_args["device"][0]: {
-                "hostname": cli_args["device"][0],
-                "os": cli_args["device"][1],
-                "protocol": cli_args["device"][2],
-            }
+    devices = setup_devices(cli_args)
+
+    with tempfile.TemporaryDirectory(prefix="bgpneiget_", suffix="_db", ignore_cleanup_errors=True) as tmp_db_dir:
+
+        # Override any configuration file user name and password with command line
+        # options
+        if cli_args["username"]:
+            cfg["username"] = cli_args["username"]
+
+        if cli_args["password"]:
+            cfg["password"] = cli_args["password"]
+
+        if not cfg["password"] or not cfg["username"]:
+            raise SystemExit("Could not find a username and password from the command line or configuration file.")
+
+        prog_args = {
+            "username": cfg["username"],
+            "password": cfg["password"],
+            "db_file": f"{tmp_db_dir}/results.db",
+            "except_as": cli_args["except_as"],
+            "ignore_as": cli_args["ignore_as"],
+            "ignore_private_asn": cli_args["ignore_private_asn"],
+            "table": cli_args["table"],
+            "with_vrfs": cli_args["with_vrfs"],
+            "out_format": cli_args["out_format"],
+            "delimeter": cli_args["delimeter"],
+            "quotechar": cli_args["quotechar"],
+            "skip_telnet": cli_args["skip_telnet"],
         }
 
-    elif cli_args["seed"]:
-        try:
-            devices = json.load(cli_args["seed"])
-        except JSONDecodeError as err:
-            raise SystemExit(f"ERROR: Unable to decode json file: {err}") from err
-
-    else:
-        raise SystemExit("Required --seed or --device options are missing.")
-
-    tmp_db_dir = tempfile.mkdtemp(prefix="bgpneiget_", suffix="_db")
-
-    if "username" in cli_args:
-        cfg["username"] = cli_args["username"]
-
-    if "password" in cli_args:
-        cfg["password"] = cli_args["password"]
-
-    prog_args = {
-        "username": cfg["username"],
-        "password": cfg["password"],
-        "db_file": f"{tmp_db_dir}/results.db",
-        "except_as": cli_args["except_as"],
-        "ignore_as": cli_args["ignore_as"],
-        "ignore_private_asn": cli_args["ignore_private_asn"],
-        "table": cli_args["table"],
-        "with_vrfs": cli_args["with_vrfs"],
-        "out_format": cli_args["out_format"],
-        "delimeter": cli_args["delimeter"],
-        "quotechar": cli_args["quotechar"],
-        "skip_telnet": cli_args["skip_telnet"],
-    }
-
-    asyncio.run(do_devices(devices, prog_args))
-
-    try:
-        shutil.rmtree(tmp_db_dir)
-    except OSError as error:
-        logger.warning("Failed to remove temporary database directory, %s: %s", tmp_db_dir, error)
+        asyncio.run(do_devices(devices, prog_args))
