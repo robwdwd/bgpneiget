@@ -116,13 +116,13 @@ async def do_devices(devices: dict, prog_args: dict):
     "--config",
     metavar="CONFIG_FILE",
     help="Configuaration file to load.",
-    default=os.environ["HOME"] + "/.config/bgpneiget/config.json",
     envvar="BGPNEIGET_CONFIG_FILE",
-    type=click.File(mode="r"),
+    type=str,
+    required=False
 )
 @click.option(
     "--loglevel",
-    "-L",
+    "-L",s
     type=str,
     default="WARNING",
     help="Set logging level.",
@@ -217,10 +217,19 @@ def cli(**cli_args):
     Raises:
         SystemExit: Error in command line options
     """
-    try:
-        cfg = json.load(cli_args["config"])
-    except JSONDecodeError as err:
-        raise SystemExit(f"Unable to parse configuration file: {err}") from err
+    config_file_path = "/etc/bgpneiget/config.json"
+    home_dir = os.environ.get('home')
+    if home_dir:
+        config_file_path = home_dir + "/.config/bgpneiget/config.json"
+
+    if 'config' in cli_args:
+        config_file_path = cli_args['config']
+        
+    with open(config_file_path, "r") as config_file:
+        try:
+            cfg = json.load(config_file)
+        except JSONDecodeError as err:
+            raise SystemExit(f"Unable to parse configuration file: {err}") from err
 
     if cli_args["ignore_as"] and cli_args["except_as"]:
         raise SystemExit(
