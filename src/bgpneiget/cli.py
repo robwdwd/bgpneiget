@@ -18,6 +18,7 @@ import shutil
 import sys
 import tempfile
 from json import JSONDecodeError
+from typing import Union
 
 import aiosqlite
 import click
@@ -109,6 +110,51 @@ async def do_devices(devices: dict, prog_args: dict):
             raise SystemExit("Invalid output format.")
 
     await db_con.close()
+
+def load_config(config_file_cli: Union[str, None]) -> dict:
+    """
+    Loads and parses a configuration file using JSON.
+
+    Args:
+        config_file_cli (str): Command line location of config file if specified.
+
+    Returns:
+        dict: The parsed configuration data.
+
+    Raises:
+        SystemExit: If there is an error parsing the configuration file.
+    """
+
+    config_file_path = ""
+
+    if config_file_cli:
+        if not os.path.isfile(config_file_cli):
+            raise SystemExit(f"Configuration file '{config_file_cli}' does not exist.")
+        else:
+            config_file_path = config_file_cli
+
+    if not config_file_path:
+        home_dir = os.environ.get('HOME')
+        if home_dir:
+            config_file_home = home_dir + "/.config/bgpneiget/config.json"
+            if os.path.isfile(config_file_home):
+                config_file_path = config_file_home 
+
+    if not config_file_path:
+        config_file_global = "/etc/bgpneiget/config.json"
+        if os.path.isfile(config_file_global):
+            config_file_path = config_file_global
+            
+
+    if not config_file_path:
+        raise SystemExit(f"Unable to find any configuration file")
+
+    with open(config_file_path, "r") as config_file:
+        try:
+            return json.load(config_file)
+        except JSONDecodeError as err:
+            raise SystemExit(f"Unable to parse configuration file: {err}") from err
+
 
 
 @click.command()
@@ -217,19 +263,8 @@ def cli(**cli_args):
     Raises:
         SystemExit: Error in command line options
     """
-    config_file_path = "/etc/bgpneiget/config.json"
-    home_dir = os.environ.get('home')
-    if home_dir:
-        config_file_path = home_dir + "/.config/bgpneiget/config.json"
 
-    if 'config' in cli_args:
-        config_file_path = cli_args['config']
-        
-    with open(config_file_path, "r") as config_file:
-        try:
-            cfg = json.load(config_file)
-        except JSONDecodeError as err:
-            raise SystemExit(f"Unable to parse configuration file: {err}") from err
+    cfg = load_config(cli_args['config'])
 
     if cli_args["ignore_as"] and cli_args["except_as"]:
         raise SystemExit(
