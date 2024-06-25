@@ -179,36 +179,7 @@ class JunOsDevice(BaseDevice):
 
             remote_asn = int(bgp_peer["peer-as"])
 
-            if (
-                prog_args["ignore_private_asn"]
-                and not (1 <= remote_asn <= 23455)
-                and not (23457 <= remote_asn <= 64495)
-                and not (131072 <= remote_asn <= 4199999999)
-            ):
-                logger.info(
-                    "[%s] Ignoring neighbour '%s', ASN '%s' is reserved or private.",
-                    self.hostname,
-                    remote_ip,
-                    remote_asn,
-                )
-                continue
-
-            if prog_args["except_as"] and (remote_asn not in prog_args["except_as"]):
-                logger.info(
-                    "[%s] Ignoring neighbour '%s', '%s' not in except AS list.",
-                    self.hostname,
-                    remote_ip,
-                    remote_asn,
-                )
-                continue
-
-            if prog_args["ignore_as"] and remote_asn in prog_args["ignore_as"]:
-                logger.info(
-                    "[%s] Ignoring neighbour '%s', '%s' in ignored AS list.",
-                    self.hostname,
-                    remote_ip,
-                    remote_asn,
-                )
+            if not self.validate_asn(prog_args, remote_ip, remote_asn):
                 continue
 
             new_neighbour = self.get_default_neighbour_dict()
@@ -245,20 +216,18 @@ class JunOsDevice(BaseDevice):
         filtered_results = []
         for neighbour in nei_results:
             if neighbour["address_family"] not in prog_args["table"]:
-                logger.debug(
-                    "[%s] Ignoring neighbour '%s' with unrequested address family '%s'.",
+                self.log_ignored_neighbour(
                     self.hostname,
                     neighbour["remote_ip"],
-                    neighbour["address_family"],
+                    f"{neighbour['address_family']} neighbour but {', '.join(prog_args['table'])} address families requested",
                 )
                 continue
 
             if neighbour["routing_instance"] != "default" and not prog_args["with_vrfs"]:
-                logger.debug(
-                    "[%s] Ignoring neighbour '%s' with routing instance '%s' --with-vrfs not set.",
+                self.log_ignored_neighbour(
                     self.hostname,
                     neighbour["remote_ip"],
-                    neighbour["routing_instance"],
+                    f"Found routing instance '{neighbour['routing_instance']}' --with-vrfs not set",
                 )
                 continue
 

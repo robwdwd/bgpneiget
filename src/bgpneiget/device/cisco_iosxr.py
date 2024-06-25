@@ -58,37 +58,10 @@ class CiscoIOSXRDevice(BaseDevice):
         results = []
         for neighbour in result:
             as_number = int(neighbour["NEIGH_AS"])
+            addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
+            remote_ip = str(addr)
 
-            if (
-                prog_args["ignore_private_asn"]
-                and not (1 <= as_number <= 23455)
-                and not (23457 <= as_number <= 64495)
-                and not (131072 <= as_number <= 4199999999)
-            ):
-                logger.info(
-                    "[%s] Ignoring neighbour '%s', ASN '%s' is reserved or private.",
-                    self.hostname,
-                    neighbour["BGP_NEIGH"],
-                    as_number,
-                )
-                continue
-
-            if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
-                logger.info(
-                    "[%s] Ignoring neighbour '%s', '%s' not in except AS list.",
-                    self.hostname,
-                    neighbour["BGP_NEIGH"],
-                    as_number,
-                )
-                continue
-
-            if prog_args["ignore_as"] and as_number in prog_args["ignore_as"]:
-                logger.info(
-                    "[%s] Ignoring neighbour '%s', '%s' in ignored AS list.",
-                    self.hostname,
-                    neighbour["BGP_NEIGH"],
-                    as_number,
-                )
+            if not self.validate_asn(prog_args, neighbour, as_number):
                 continue
 
             routing_instance = "default"
@@ -96,16 +69,12 @@ class CiscoIOSXRDevice(BaseDevice):
                 routing_instance = neighbour["VRF"]
 
             if routing_instance != "default" and not prog_args["with_vrfs"]:
-                logger.debug(
-                    "[%s] Ignoring neighbour '%s' with routing instance '%s' --with-vrfs not set.",
-                    self.hostname,
-                    neighbour["BGP_NEIGH"],
-                    routing_instance,
+                self.log_ignored_neighbour(
+                    self.hostname, remote_ip, f"Found routing instance '{routing_instance}' --with-vrfs not set"
                 )
                 continue
 
-            addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
-            logger.debug("[%s] Found neighbour %s.", self.hostname, str(addr))
+            logger.debug("[%s] Found neighbour %s.", self.hostname, remote_ip)
 
             is_up = False
             pfxrcd = -1
@@ -126,7 +95,7 @@ class CiscoIOSXRDevice(BaseDevice):
                     "hostname": self.hostname,
                     "os": self.os,
                     "platform": self.platform,
-                    "remote_ip": str(addr),
+                    "remote_ip": remote_ip,
                     "remote_asn": as_number,
                     "address_family": table,
                     "ip_version": addr.version,

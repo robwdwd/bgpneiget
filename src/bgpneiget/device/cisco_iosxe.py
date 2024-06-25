@@ -66,105 +66,55 @@ class CiscoIOSDevice(BaseDevice):
         results = []
         for neighbour in result:
             addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
+            remote_ip = str(addr)
 
             logger.debug("[%s] Found neighbour %s.", self.hostname, neighbour)
 
-            ipversion = addr.version
-            as_number = int(neighbour["NEIGH_AS"])
-
             if not neighbour["ADDRESS_FAMILY"]:
-                logger.debug(
-                    "[%s] Ignoring neighbour '%s' with no address family.", self.hostname, neighbour["BGP_NEIGH"]
-                )
-                continue
-
-            if (
-                prog_args["ignore_private_asn"]
-                and not (1 <= as_number <= 23455)
-                and not (23457 <= as_number <= 64495)
-                and not (131072 <= as_number <= 4199999999)
-            ):
-                logger.info(
-                    "[%s] Ignoring neighbour '%s', ASN '%s' is reserved or private.",
-                    self.hostname,
-                    neighbour["BGP_NEIGH"],
-                    as_number,
-                )
-                continue
-
-            if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
-                logger.info(
-                    "[%s] Ignoring neighbour '%s', '%s' not in except AS list.",
-                    self.hostname,
-                    neighbour["BGP_NEIGH"],
-                    neighbour["NEIGH_AS"],
-                )
-                continue
-
-            if prog_args["ignore_as"] and as_number in prog_args["ignore_as"]:
-                logger.info(
-                    "[%s] Ignoring neighbour '%s', '%s' in ignored AS list.",
-                    self.hostname,
-                    neighbour["BGP_NEIGH"],
-                    neighbour["NEIGH_AS"],
-                )
+                self.log_ignored_neighbour(self.hostname, remote_ip, "No address family")
                 continue
 
             if neighbour["ADDRESS_FAMILY"] in ("IPv4 Unicast", "IPv6 Unicast"):
-                logger.debug(
-                    "[%s] Ignoring vpn neighbour '%s' with IPv4 or IPv6 address family.",
+                self.log_ignored_neighbour(self.hostname, remote_ip, "Non VPN IPv4 or IPv6 address family")
+                continue
+
+            if (neighbour["ADDRESS_FAMILY"] == "VPNv4 Unicast" and table == "vpnv6") or (
+                neighbour["ADDRESS_FAMILY"] == "VPNv6 Unicast" and table == "vpnv4"
+            ):
+                self.log_ignored_neighbour(
                     self.hostname,
-                    neighbour["BGP_NEIGH"],
+                    remote_ip,
+                    f"{neighbour['ADDRESS_FAMILY']} neighbour but {table} address family requested",
                 )
                 continue
 
-            if neighbour["ADDRESS_FAMILY"] == "VPNv4 Unicast" and table == "vpnv6":
-                logger.debug(
-                    "[%s] Ignoring vpnv4 neighbour '%s' VPNv6 address family requested.",
-                    self.hostname,
-                    neighbour["BGP_NEIGH"],
-                )
+            remote_asn = int(neighbour["NEIGH_AS"])
+
+            if not self.validate_asn(prog_args, remote_ip, remote_asn):
                 continue
 
-            if neighbour["ADDRESS_FAMILY"] == "VPNv6 Unicast" and table == "vpnv4":
-                logger.debug(
-                    "[%s] Ignoring vpnv6 neighbour '%s' VPNv4 address family requested.",
-                    self.hostname,
-                    neighbour["BGP_NEIGH"],
-                )
-                continue
-
-            routing_instance = "default"
-            if neighbour["VRF"] != "remote":
-                routing_instance = neighbour["VRF"]
-
+            routing_instance = neighbour["VRF"] if neighbour["VRF"] != "remote" else "default"
+            
             if routing_instance != "default" and not prog_args["with_vrfs"]:
-                logger.debug(
-                    "[%s] Ignoring neighbour '%s' with routing instance '%s' --with-vrfs not set.",
-                    self.hostname,
-                    neighbour["BGP_NEIGH"],
-                    routing_instance,
+                self.log_ignored_neighbour(
+                    self.hostname, remote_ip, f"Found routing instance '{routing_instance}' --with-vrfs not set"
                 )
                 continue
 
+            is_up = neighbour["STATE"] == "Established"
+            pfxrcd = neighbour["PREFIXES"] if is_up else -1
+            state = "Established" if is_up else neighbour["STATE"]
             is_up = False
-            pfxrcd = -1
-            state = "Established"
-            if neighbour["STATE"] == "Established":
-                is_up = True
-                pfxrcd = neighbour["PREFIXES"]
-            else:
-                state = neighbour["STATE"]
 
             results.append(
                 {
                     "hostname": self.hostname,
                     "os": self.os,
                     "platform": self.platform,
-                    "remote_ip": str(addr),
-                    "remote_asn": as_number,
+                    "remote_ip": remote_ip,
+                    "remote_asn": remote_asn,
                     "address_family": table,
-                    "ip_version": ipversion,
+                    "ip_version": addr.version,
                     "is_up": is_up,
                     "pfxrcd": pfxrcd,
                     "state": state,
@@ -189,42 +139,13 @@ class CiscoIOSDevice(BaseDevice):
         results = []
         for neighbour in result:
             addr = ipaddress.ip_address(neighbour["BGP_NEIGH"])
+            remote_ip = str(addr)
 
-            logger.debug("[%s] Found neighbour %s.", self.hostname, neighbour)
+            logger.debug("[%s] Found neighbour %s.", self.hostname, remote_ip)
 
-            ipversion = addr.version
-            as_number = int(neighbour["NEIGH_AS"])
+            remote_asn = int(neighbour["NEIGH_AS"])
 
-            if (
-                prog_args["ignore_private_asn"]
-                and not (1 <= as_number <= 23455)
-                and not (23457 <= as_number <= 64495)
-                and not (131072 <= as_number <= 4199999999)
-            ):
-                logger.info(
-                    "[%s] Ignoring neighbour '%s', ASN '%s' is reserved or private.",
-                    self.hostname,
-                    neighbour["BGP_NEIGH"],
-                    as_number,
-                )
-                continue
-
-            if prog_args["except_as"] and (as_number not in prog_args["except_as"]):
-                logger.info(
-                    "[%s] Ignoring neighbour '%s', '%s' not in except AS list.",
-                    self.hostname,
-                    neighbour["BGP_NEIGH"],
-                    neighbour["NEIGH_AS"],
-                )
-                continue
-
-            if prog_args["ignore_as"] and as_number in prog_args["ignore_as"]:
-                logger.info(
-                    "[%s] Ignoring neighbour '%s', '%s' in ignored AS list.",
-                    self.hostname,
-                    neighbour["BGP_NEIGH"],
-                    neighbour["NEIGH_AS"],
-                )
+            if not self.validate_asn(prog_args, remote_ip, remote_asn):
                 continue
 
             is_up = False
@@ -241,10 +162,10 @@ class CiscoIOSDevice(BaseDevice):
                     "hostname": self.hostname,
                     "os": self.os,
                     "platform": self.platform,
-                    "remote_ip": str(addr),
-                    "remote_asn": as_number,
+                    "remote_ip": remote_ip,
+                    "remote_asn": remote_asn,
                     "address_family": table,
-                    "ip_version": ipversion,
+                    "ip_version": addr.version,
                     "is_up": is_up,
                     "pfxrcd": pfxrcd,
                     "state": state,
