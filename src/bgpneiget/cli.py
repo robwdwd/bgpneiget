@@ -31,6 +31,25 @@ logging.basicConfig(format="%(asctime)s %(message)s")
 logger = logging.getLogger()
 
 
+def check_mutually_exclusive_options(cli_args: dict):
+    """
+    Check for mutually exclusive options in the command-line arguments.
+
+    Args:
+        cli_args (dict): Dictionary containing command-line arguments.
+
+    Raises:
+        SystemExit: If mutually exclusive options are provided in the command-line arguments.
+    """
+
+    if cli_args["ignore_as"] and cli_args["except_as"]:
+        raise SystemExit(
+            f"{os.path.basename(__file__)} error: argument --ignore-as: not allowed with argument --except-as"
+        )
+    if cli_args["seed"] is not None and cli_args["device"] is not None:
+        raise SystemExit(f"{os.path.basename(__file__)} error: argument --seed: not allowed with argument --device")
+
+
 async def setup_database(db_file: str) -> aiosqlite.Connection:
     try:
         db_con = await aiosqlite.connect(db_file)
@@ -44,6 +63,68 @@ async def setup_database(db_file: str) -> aiosqlite.Connection:
         return db_con
     except aiosqlite.Error as err:
         raise SystemExit(f"Failed to create new SQLite database: {err}") from err
+
+
+def load_config(config_file_cli: Union[str, None]) -> dict:
+    """
+    Loads and parses a configuration file using JSON.
+
+    Args:
+        config_file_cli (str): Command line location of the config file if specified.
+
+    Returns:
+        dict: The parsed configuration data.
+
+    Raises:
+        SystemExit: If there is an error parsing the configuration file.
+    """
+
+    config_file_paths = [
+        config_file_cli,
+        f"{os.environ.get('HOME', '')}/.config/bgpneiget/config.json",
+        "/etc/bgpneiget/config.json",
+    ]
+
+    for path in config_file_paths:
+        if path and os.path.isfile(path):
+            with open(path, "r") as config_file:
+                try:
+                    return json.load(config_file)
+                except JSONDecodeError as err:
+                    raise SystemExit(f"Unable to parse configuration file: {err}") from err
+
+    raise SystemExit("Unable to find any configuration file")
+
+
+def setup_devices(cli_args: dict) -> dict:
+    """
+    Setup devices based on command-line arguments.
+
+    Args:
+        cli_args (dict): Dictionary containing command-line arguments.
+
+    Returns:
+        dict: Dictionary of devices with hostname, OS, and protocol.
+
+    Raises:
+        SystemExit: If required --seed or --device options are missing or there is an error decoding the JSON seed file.
+    """
+
+    if cli_args["device"]:
+        return {
+            cli_args["device"][0]: {
+                "hostname": cli_args["device"][0],
+                "os": cli_args["device"][1],
+                "protocol": cli_args["device"][2],
+            }
+        }
+    elif cli_args["seed"]:
+        try:
+            return json.load(cli_args["seed"])
+        except JSONDecodeError as err:
+            raise SystemExit(f"ERROR: Unable to decode json file: {err}") from err
+    else:
+        raise SystemExit("Required --seed or --device options are missing.")
 
 
 async def output_results(db_con: aiosqlite.Connection, out_format: str, quotechar: str, delimiter: str):
@@ -113,88 +194,6 @@ async def do_devices(devices: dict, prog_args: dict):
 
     await output_results(db_con, prog_args["out_format"], prog_args["quotechar"], prog_args["delimeter"])
     await db_con.close()
-
-
-
-def load_config(config_file_cli: Union[str, None]) -> dict:
-    """
-    Loads and parses a configuration file using JSON.
-
-    Args:
-        config_file_cli (str): Command line location of the config file if specified.
-
-    Returns:
-        dict: The parsed configuration data.
-
-    Raises:
-        SystemExit: If there is an error parsing the configuration file.
-    """
-
-    config_file_paths = [
-        config_file_cli,
-        f"{os.environ.get('HOME', '')}/.config/bgpneiget/config.json",
-        "/etc/bgpneiget/config.json",
-    ]
-
-    for path in config_file_paths:
-        if path and os.path.isfile(path):
-            with open(path, "r") as config_file:
-                try:
-                    return json.load(config_file)
-                except JSONDecodeError as err:
-                    raise SystemExit(f"Unable to parse configuration file: {err}") from err
-
-    raise SystemExit("Unable to find any configuration file")
-
-
-def check_mutually_exclusive_options(cli_args: dict):
-    """
-    Check for mutually exclusive options in the command-line arguments.
-
-    Args:
-        cli_args (dict): Dictionary containing command-line arguments.
-
-    Raises:
-        SystemExit: If mutually exclusive options are provided in the command-line arguments.
-    """
-
-    if cli_args["ignore_as"] and cli_args["except_as"]:
-        raise SystemExit(
-            f"{os.path.basename(__file__)} error: argument --ignore-as: not allowed with argument --except-as"
-        )
-    if cli_args["seed"] is not None and cli_args["device"] is not None:
-        raise SystemExit(f"{os.path.basename(__file__)} error: argument --seed: not allowed with argument --device")
-
-
-def setup_devices(cli_args: dict) -> dict:
-    """
-    Setup devices based on command-line arguments.
-
-    Args:
-        cli_args (dict): Dictionary containing command-line arguments.
-
-    Returns:
-        dict: Dictionary of devices with hostname, OS, and protocol.
-
-    Raises:
-        SystemExit: If required --seed or --device options are missing or there is an error decoding the JSON seed file.
-    """
-
-    if cli_args["device"]:
-        return {
-            cli_args["device"][0]: {
-                "hostname": cli_args["device"][0],
-                "os": cli_args["device"][1],
-                "protocol": cli_args["device"][2],
-            }
-        }
-    elif cli_args["seed"]:
-        try:
-            return json.load(cli_args["seed"])
-        except JSONDecodeError as err:
-            raise SystemExit(f"ERROR: Unable to decode json file: {err}") from err
-    else:
-        raise SystemExit("Required --seed or --device options are missing.")
 
 
 @click.command()
@@ -341,4 +340,3 @@ def cli(**cli_args):
         }
 
         asyncio.run(do_devices(devices, prog_args))
-
