@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bgpneiget"
-version = "2.0.14"
+version = "2.0.15"
 description = "Get BGP Neighbours from network devices"
 authors = ["Rob Woodward <rob@emailplus.org>"]
 

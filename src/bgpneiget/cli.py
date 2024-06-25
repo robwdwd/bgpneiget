@@ -210,6 +210,7 @@ async def do_devices(devices: dict, prog_args: dict):
     "-L",
     type=str,
     default="WARNING",
+    envvar="BGPNEIGET_LOG_LEVEL",
     help="Set logging level.",
 )
 @click.option(
