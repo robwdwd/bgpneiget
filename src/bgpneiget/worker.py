@@ -53,22 +53,15 @@ class DeviceWorker:
 
     async def run(self, i: int) -> None:
         """Device worker coroutine, reads from the queue until empty."""
+
         try:
-            # if i == 1:
-            #    raise DeviceWorkerException("test")
+            self.db_cursor = await self.db_con.cursor()
+        except aiosqlite.Error as err:
+            raise DeviceWorkerException(f"Worker {i} failed to create db cursor: {err}") from err
 
-            try:
-                self.db_cursor = await self.db_con.cursor()
-            except aiosqlite.Error as err:
-                raise DeviceWorkerException(f"Worker {i} failed to create db cursor: {err}") from err
-
-            while True:
-                if self.queue.empty():
-                    logger.info("Worker #%d finished no more items in queue.", i)
-                    return
-
+        try:
+            while not self.queue.empty():
                 device: BaseDevice = self.queue.get_nowait()
-
                 result = []
 
                 try:
