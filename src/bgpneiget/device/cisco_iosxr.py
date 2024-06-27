@@ -64,9 +64,7 @@ class CiscoIOSXRDevice(BaseDevice):
             if not self.validate_asn(prog_args, neighbour, as_number):
                 continue
 
-            routing_instance = "default"
-            if "VRF" in neighbour and neighbour["VRF"]:
-                routing_instance = neighbour["VRF"]
+            routing_instance = neighbour.get("VRF", "default")
 
             if routing_instance != "default" and not prog_args["with_vrfs"]:
                 self.log_ignored_neighbour(
@@ -76,19 +74,13 @@ class CiscoIOSXRDevice(BaseDevice):
 
             logger.debug("[%s] Found neighbour %s.", self.hostname, remote_ip)
 
-            is_up = False
-            pfxrcd = -1
-            state = "Established"
+            # Get state and number of prefixes received.
+            state_pfxrcd = neighbour["STATE_PFXRCD"]
+            is_up = state_pfxrcd.isdigit()
+            pfxrcd = int(state_pfxrcd) if is_up else -1
+            state = "Established" if is_up else state_pfxrcd
 
-            if neighbour["STATE_PFXRCD"].isdigit():
-                is_up = True
-                pfxrcd = neighbour["STATE_PFXRCD"]
-            else:
-                state = neighbour["STATE_PFXRCD"]
-
-            protocol_instance = "default"
-            if "BGP_INSTANCE" in neighbour and neighbour["BGP_INSTANCE"]:
-                protocol_instance = neighbour["BGP_INSTANCE"]
+            protocol_instance = neighbour.get("BGP_INSTANCE", "default")
 
             results.append(
                 {

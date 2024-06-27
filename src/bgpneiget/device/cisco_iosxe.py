@@ -104,7 +104,6 @@ class CiscoIOSDevice(BaseDevice):
             is_up = neighbour["STATE"] == "Established"
             pfxrcd = neighbour["PREFIXES"] if is_up else -1
             state = "Established" if is_up else neighbour["STATE"]
-            is_up = False
 
             results.append(
                 {
@@ -148,14 +147,9 @@ class CiscoIOSDevice(BaseDevice):
             if not self.validate_asn(prog_args, remote_ip, remote_asn):
                 continue
 
-            is_up = False
-            pfxrcd = -1
-            state = "Established"
-            if neighbour["STATE_PFXRCD"].isdigit():
-                is_up = True
-                pfxrcd = neighbour["STATE_PFXRCD"]
-            else:
-                state = neighbour["STATE_PFXRCD"]
+            is_up = neighbour["STATE_PFXRCD"].isdigit()
+            pfxrcd = neighbour["STATE_PFXRCD"] if is_up else -1
+            state = "Established" if is_up else neighbour["STATE_PFXRCD"]
 
             results.append(
                 {

@@ -175,7 +175,7 @@ class JunOsDevice(BaseDevice):
             # Get remote IP address.
             remote_ip: str = bgp_peer["peer-address"]
             if "+" in remote_ip:
-                remote_ip = remote_ip[0 : remote_ip.find("+")]
+                remote_ip = remote_ip[: remote_ip.find("+")]
 
             remote_asn = int(bgp_peer["peer-as"])
 
@@ -249,9 +249,11 @@ class JunOsDevice(BaseDevice):
         Returns:
             dict: _description_
         """
-        result = {"address_family": "", "routing_instance": "", "pfxrcd": -1}
-
-        result["pfxrcd"] = rib["accepted-prefix-count"]
+        result = {
+            "address_family": "",
+            "routing_instance": "",
+            "pfxrcd": rib["accepted-prefix-count"],
+        }
 
         family = rib["name"].rsplit(".")
         address_family = ""
